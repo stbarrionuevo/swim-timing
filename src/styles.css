@@ -1,0 +1,720 @@
+:root {
+  /* --- Color --- */
+  --bg: #eef3f4;
+  --surface: #ffffff;
+  --ink: #0f2733;
+  --ink-soft: #4d6470;
+  --muted: #8296a0;
+  --line: #d7e1e3;
+
+  --primary: #0e5c73;
+  --primary-dark: #093c4c;
+  --primary-tint: #e2eff2;
+
+  --accent: #ff5a36; /* botón de acción principal: "GUARDAR" */
+  --accent-dark: #d94422;
+
+  --success: #17915f;
+  --success-tint: #e3f5ec;
+  --warning: #c98400;
+  --warning-tint: #fbf1dd;
+  --pending: #8296a0;
+  --pending-tint: #eef1f2;
+
+  --danger: #d33636;
+
+  /* --- Tipografía --- */
+  --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
+    sans-serif;
+  --font-time: ui-monospace, 'SF Mono', 'Roboto Mono', 'Cascadia Mono', Consolas,
+    monospace;
+
+  /* --- Layout --- */
+  --radius-s: 10px;
+  --radius-m: 16px;
+  --radius-l: 22px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --tap-min: 52px;
+
+  --shadow-card: 0 1px 2px rgba(15, 39, 51, 0.06), 0 2px 8px rgba(15, 39, 51, 0.05);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+button {
+  font-family: inherit;
+}
+
+input {
+  font-family: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+.app-shell {
+  max-width: 480px;
+  margin: 0 auto;
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+/* Barra superior simple */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--primary);
+  color: #fff;
+  padding: var(--space-4) var(--space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.topbar__back {
+  background: rgba(255, 255, 255, 0.14);
+  border: none;
+  color: #fff;
+  width: var(--tap-min);
+  height: 44px;
+  border-radius: var(--radius-s);
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.topbar__title {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  line-height: 1.3;
+}
+
+.topbar__subtitle {
+  font-size: 12px;
+  opacity: 0.8;
+  font-weight: 500;
+}
+
+main {
+  flex: 1;
+  padding: var(--space-4);
+  padding-bottom: var(--space-6);
+}
+
+/* Botones grandes, táctiles */
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--tap-min);
+  border-radius: var(--radius-m);
+  border: none;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0 var(--space-4);
+  width: 100%;
+  transition: transform 0.08s ease, opacity 0.15s ease;
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn--primary {
+  background: var(--primary);
+  color: #fff;
+}
+
+.btn--accent {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn--ghost {
+  background: var(--surface);
+  color: var(--primary);
+  border: 1.5px solid var(--line);
+}
+
+.btn--danger {
+  background: #fdecec;
+  color: var(--danger);
+}
+
+/* Card genérica (selector de año / serie) */
+.tile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 64px;
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-m);
+  padding: var(--space-4) var(--space-4);
+  margin-bottom: var(--space-3);
+  cursor: pointer;
+  text-align: left;
+  box-shadow: var(--shadow-card);
+}
+
+.tile:active {
+  transform: scale(0.99);
+}
+
+.tile__label {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.tile__meta {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin-top: 2px;
+}
+
+.tile__chevron {
+  color: var(--muted);
+  font-size: 20px;
+}
+
+/* Badge de estado de serie */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.status--pendiente {
+  background: var(--pending-tint);
+  color: var(--ink-soft);
+}
+
+.status--en-progreso {
+  background: var(--warning-tint);
+  color: var(--warning);
+}
+
+.status--completada {
+  background: var(--success-tint);
+  color: var(--success);
+}
+
+.status__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* Fila de participante en la pantalla de carga */
+.participant-row {
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-m);
+  padding: var(--space-4);
+  margin-bottom: var(--space-3);
+  box-shadow: var(--shadow-card);
+}
+
+.participant-row--absent {
+  opacity: 0.6;
+}
+
+.participant-row__name {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: var(--space-1);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.participant-row__name-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+}
+
+.participant-row__name-btn:disabled {
+  cursor: default;
+}
+
+.stopwatch-affordance {
+  font-size: 14px;
+  opacity: 0.55;
+}
+
+.stopwatch-panel {
+  margin-top: 8px;
+  margin-bottom: var(--space-3);
+  padding: 14px;
+  background: var(--primary-dark);
+  border-radius: var(--radius-m);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.stopwatch-display {
+  font-family: var(--font-time);
+  font-size: 40px;
+  font-weight: 700;
+  color: #f6fbfa;
+  letter-spacing: 0.02em;
+}
+
+.stopwatch-display.is-running {
+  color: var(--accent);
+}
+
+.stopwatch-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.stopwatch-actions .btn {
+  width: auto;
+  flex: 1;
+  min-height: 44px;
+}
+
+.visitor-tag {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--primary);
+  background: var(--primary-tint);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.participant-row__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+/* Input de tiempo: la "firma visual" del producto — luce como un
+   cronómetro digital: dígitos tabulares grandes en una cápsula oscura. */
+.time-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.time-field__input {
+  width: 100%;
+  font-family: var(--font-time);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-align: center;
+  color: #f6fbfa;
+  background: var(--primary-dark);
+  border: none;
+  border-radius: var(--radius-s);
+  padding: 12px 8px;
+  min-height: var(--tap-min);
+  -moz-appearance: textfield;
+}
+
+.time-field__input::placeholder {
+  color: rgba(246, 251, 250, 0.35);
+  font-weight: 500;
+}
+
+.time-field__input:focus {
+  outline: 3px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.time-field__input.is-saved {
+  background: var(--success);
+}
+
+.time-field__input.is-saving {
+  background: var(--ink-soft);
+}
+
+.time-field__input.is-error {
+  background: var(--danger);
+}
+
+.time-field__input.is-queued {
+  background: var(--warning);
+  color: #3a2a00;
+}
+
+.checkbox-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  min-height: 40px;
+  padding: 0 4px;
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.checkbox-pill input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--primary);
+}
+
+.hint-text {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin-top: var(--space-1);
+  min-height: 16px;
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--ink-soft);
+  padding: var(--space-6) var(--space-4);
+}
+
+.section-label {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+  margin: var(--space-4) 0 var(--space-2);
+}
+
+/* Ranking */
+.rank-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-s);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-2);
+}
+
+.rank-row--podium-1 {
+  border-color: #d8b400;
+  background: #fffbea;
+}
+.rank-row--podium-2 {
+  border-color: #b7c1c5;
+  background: #f7f9fa;
+}
+.rank-row--podium-3 {
+  border-color: #d99a63;
+  background: #fff6ee;
+}
+
+.rank-row__pos {
+  font-family: var(--font-time);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--ink-soft);
+  width: 26px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.rank-row__name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rank-row__meta {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.rank-row__time {
+  font-family: var(--font-time);
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--primary-dark);
+  flex-shrink: 0;
+}
+
+.tabs {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.tabs__btn {
+  flex: 1;
+  min-height: 44px;
+  border-radius: var(--radius-s);
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-soft);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.tabs__btn.is-active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.add-series-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.year-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.year-tile {
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-l);
+  min-height: 92px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  box-shadow: var(--shadow-card);
+}
+
+.year-tile__number {
+  font-family: var(--font-time);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--primary-dark);
+}
+
+.year-tile__label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--ink-soft);
+}
+
+.hero {
+  padding: var(--space-2) 0 var(--space-5);
+  text-align: center;
+}
+
+.hero__kicker {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.hero__title {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--ink);
+  margin-top: 4px;
+}
+
+.hero__date {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin-top: 4px;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  background: var(--ink);
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  z-index: 100;
+  max-width: 90vw;
+  text-align: center;
+}
+
+/* --- Pantalla pública (TV/proyector): alto contraste, texto grande --- */
+.public-view {
+  background: var(--primary-dark);
+  color: #fff;
+  min-height: 100vh;
+  padding: var(--space-6) var(--space-5);
+}
+
+.public-view .rank-row {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.public-view .rank-row__name,
+.public-view .rank-row__time {
+  color: #fff;
+}
+
+.public-view .rank-row__pos {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+@media (min-width: 700px) {
+  .public-view .rank-row__name {
+    font-size: 22px;
+  }
+  .public-view .rank-row__time {
+    font-size: 24px;
+  }
+  .public-view .rank-row__pos {
+    font-size: 20px;
+    width: 40px;
+  }
+}
+
+/* Nav inferior tipo Google Clock, para las pantallas raíz (Series /
+   Resultados / Público / Admin). Las pantallas de detalle (cargar una
+   serie, admin de un año) mantienen la TopBar con flecha de volver en
+   vez de esto. */
+.bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-width: 480px;
+  margin: 0 auto;
+  background: var(--surface);
+  border-top: 1.5px solid var(--line);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 6px 0 calc(6px + env(safe-area-inset-bottom));
+  z-index: 20;
+}
+
+.bottom-nav__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-decoration: none;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: var(--radius-s);
+}
+
+.bottom-nav__item.is-active {
+  color: var(--primary);
+}
+
+.bottom-nav__icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+main.has-bottom-nav {
+  padding-bottom: 76px;
+}
+
+/* Botón de acción flotante, chico (no el FAB grande de Material por
+   defecto) — sólo se usa donde hay una única acción de "agregar" obvia. */
+.fab {
+  position: fixed;
+  right: 20px;
+  bottom: 24px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 700;
+  border: none;
+  box-shadow: 0 2px 10px rgba(15, 39, 51, 0.28);
+  z-index: 15;
+}
+
+.fab:active {
+  transform: scale(0.94);
+}
+
+.fab.has-bottom-nav-offset {
+  bottom: 88px;
+}

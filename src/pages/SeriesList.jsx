@@ -1,0 +1,159 @@
+import { useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { useCompetition } from '../context/CompetitionContext'
+import TopBar from '../components/TopBar'
+import StatusBadge from '../components/StatusBadge'
+import Icon from '../components/Icon'
+
+export default function SeriesList() {
+  const { year } = useParams()
+  const yearNum = Number(year)
+  const navigate = useNavigate()
+  const { getSeriesListForYear, addSeries, deleteSeries } = useCompetition()
+  const [adding, setAdding] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState(null)
+
+  const seriesList = getSeriesListForYear(yearNum)
+  const nextSeriesNumber =
+    seriesList.length === 0 ? 1 : Math.max(...seriesList.map((s) => s.seriesNumber)) + 1
+
+  async function handleAdd() {
+    setAdding(true)
+    try {
+      await addSeries(yearNum, nextSeriesNumber)
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  function requestDelete(series) {
+    if (series.participantCount === 0 || series.loadedCount === 0) {
+      deleteSeries(series.id)
+    } else {
+      setPendingDelete(series)
+    }
+  }
+
+  return (
+    <div className="app-shell">
+      <TopBar title={`${yearNum}° año`} subtitle="Seleccioná la serie" backTo="/" />
+      <main>
+        {seriesList.length === 0 && (
+          <div className="empty-state">Todavía no hay series para este año.</div>
+        )}
+
+        {seriesList.map((series) => (
+          <div key={series.id} style={{ position: 'relative' }}>
+            <button
+              className="tile"
+              onClick={() => navigate(`/anio/${yearNum}/serie/${series.seriesNumber}`)}
+            >
+              <div>
+                <div className="tile__label">Serie {series.seriesNumber}</div>
+                <div className="tile__meta">
+                  {series.participantCount} participante
+                  {series.participantCount !== 1 ? 's' : ''}
+                  {series.loadedCount > 0 &&
+                    ` · ${series.loadedCount}/${series.activeCount} tiempos`}
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <StatusBadge status={series.status} />
+                <span className="tile__chevron"><Icon name="chevron-right" /></span>
+              </div>
+            </button>
+            {(series.participantCount === 0 || series.loadedCount === 0) && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  requestDelete(series)
+                }}
+                aria-label={`Eliminar serie ${series.seriesNumber}`}
+                style={{
+                  position: 'absolute',
+                  top: 10,
+                  right: 10,
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--muted)',
+                  fontSize: 13,
+                  padding: 6,
+                }}
+              >
+                Eliminar
+              </button>
+            )}
+          </div>
+        ))}
+
+        <div style={{ height: 68 }} />
+      </main>
+
+      <button
+        className="fab"
+        onClick={handleAdd}
+        disabled={adding}
+        aria-label={`Agregar serie ${nextSeriesNumber}`}
+      >
+        {adding ? <Icon name="spinner" className="fa-spin" /> : <Icon name="plus" />}
+      </button>
+
+      {pendingDelete && (
+        <ConfirmDeleteSeries
+          series={pendingDelete}
+          onCancel={() => setPendingDelete(null)}
+          onConfirm={() => {
+            deleteSeries(pendingDelete.id)
+            setPendingDelete(null)
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+function ConfirmDeleteSeries({ series, onCancel, onConfirm }) {
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(15,39,51,0.45)',
+        display: 'flex',
+        alignItems: 'flex-end',
+        justifyContent: 'center',
+        zIndex: 50,
+      }}
+      onClick={onCancel}
+    >
+      <div
+        style={{
+          background: 'var(--surface)',
+          borderRadius: '20px 20px 0 0',
+          padding: '24px 20px',
+          width: '100%',
+          maxWidth: 480,
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 6 }}>
+          <Icon name="triangle-exclamation" /> Esta serie tiene resultados cargados
+        </div>
+        <p style={{ color: 'var(--ink-soft)', fontSize: 14, marginBottom: 20 }}>
+          Serie {series.seriesNumber} tiene {series.loadedCount} tiempo
+          {series.loadedCount !== 1 ? 's' : ''} registrado
+          {series.loadedCount !== 1 ? 's' : ''}. Si la eliminás, esos resultados se pierden.
+          ¿Confirmás que querés eliminarla?
+        </p>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button className="btn btn--ghost" onClick={onCancel}>
+            Cancelar
+          </button>
+          <button className="btn btn--danger" onClick={onConfirm}>
+            Eliminar de todos modos
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
