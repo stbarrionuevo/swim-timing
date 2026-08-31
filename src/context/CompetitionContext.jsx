@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, useCallback } from 'react'
 import * as dataService from '../services/resultsService'
+import * as seedingService from '../services/seedingService'
 import * as offlineQueue from '../lib/offlineQueue'
 
 const CompetitionContext = createContext(null)
@@ -260,7 +261,13 @@ export function CompetitionProvider({ children }) {
           const row = payload.new
           dispatch({
             type: 'ADD_SERIES',
-            series: { id: row.id, year: row.year_number, seriesNumber: row.series_number },
+            series: {
+              id: row.id,
+              year: row.year_number,
+              seriesNumber: row.series_number,
+              tipo: row.tipo,
+              color: row.color,
+            },
           })
         }
       },
@@ -665,6 +672,78 @@ export function CompetitionProvider({ children }) {
     [state.participants]
   )
 
+  // ---------------------------------------------------------------------
+  // Siembra por colores (rojo/amarillo/verde) — wrappers de seedingService
+  // ---------------------------------------------------------------------
+
+  const getUmbrales = useCallback(() => seedingService.getUmbrales(), [])
+
+  const upsertUmbral = useCallback(
+    (yearNumber, corteRojoAmarillo, corteAmarilloVerde) =>
+      seedingService.upsertUmbral(yearNumber, corteRojoAmarillo, corteAmarilloVerde),
+    []
+  )
+
+  const importBaselineTimes = useCallback(
+    async (rows) => {
+      if (!state.competition) throw new Error('Todavía no se cargó la competencia.')
+      return seedingService.importBaselineTimes(state.competition.id, rows)
+    },
+    [state.competition]
+  )
+
+  // Las series y participantes que crea esto llegan solas por el mismo
+  // canal de Realtime que ya escucha series/participants — no hace falta
+  // dispatch manual acá, ni en generateFinalSeries.
+  const generatePreliminarySeries = useCallback(
+    async (participantesPorAnio) => {
+      if (!state.competition) throw new Error('Todavía no se cargó la competencia.')
+      return seedingService.generatePreliminarySeries(state.competition.id, participantesPorAnio)
+    },
+    [state.competition]
+  )
+
+  const generateFinalSeries = useCallback(async () => {
+    if (!state.competition) throw new Error('Todavía no se cargó la competencia.')
+    return seedingService.generateFinalSeries(state.competition.id)
+  }, [state.competition])
+
+  // Igual que getSeriesListForYear, pero filtrando por tipo ('normal' por
+  // defecto para no romper las pantallas existentes). Para ver las series
+  // de la ronda de colores: getSeriesListForYearByTipo(year, 'preliminar')
+  // / getSeriesListForYearByTipo(year, 'final').
+  const getSeriesListForYearByTipo = useCallback(
+    (year, tipo = 'normal') =>
+      state.series
+        .filter((s) => s.year === year && (s.tipo || 'normal') === tipo)
+        .sort((a, b) => a.seriesNumber - b.seriesNumber)
+        .map((s) => {
+          const participants = state.participants.filter(
+            (p) => p.year === year && p.series === s.seriesNumber
+          )
+          const activeParticipants = participants.filter((p) => p.participa)
+          const loaded = activeParticipants.filter((p) => p.result.time !== null)
+          let status = 'pendiente'
+          if (loaded.length > 0 && loaded.length < activeParticipants.length) {
+            status = 'en-progreso'
+          } else if (activeParticipants.length > 0 && loaded.length === activeParticipants.length) {
+            status = 'completada'
+          }
+          return {
+            id: s.id,
+            year,
+            seriesNumber: s.seriesNumber,
+            tipo: s.tipo || 'normal',
+            color: s.color || null,
+            participantCount: participants.length,
+            loadedCount: loaded.length,
+            activeCount: activeParticipants.length,
+            status,
+          }
+        }),
+    [state.series, state.participants]
+  )
+
   const value = useMemo(
     () => ({
       status: state.status,
@@ -691,6 +770,12 @@ export function CompetitionProvider({ children }) {
       getParticipantsForSeries,
       getRankingForYear,
       getRankingGeneral,
+      getUmbrales,
+      upsertUmbral,
+      importBaselineTimes,
+      generatePreliminarySeries,
+      generateFinalSeries,
+      getSeriesListForYearByTipo,
     }),
     [
       state.status,
@@ -716,6 +801,12 @@ export function CompetitionProvider({ children }) {
       getParticipantsForSeries,
       getRankingForYear,
       getRankingGeneral,
+      getUmbrales,
+      upsertUmbral,
+      importBaselineTimes,
+      generatePreliminarySeries,
+      generateFinalSeries,
+      getSeriesListForYearByTipo,
     ]
   )
 
