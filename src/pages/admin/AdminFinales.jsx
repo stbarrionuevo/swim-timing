@@ -42,9 +42,9 @@ export default function AdminFinales() {
         <div className="form-card">
           <p className="hint-text" style={{ marginBottom: 'var(--space-4)' }}>
             Toma el tiempo real que nadó cada chico en su serie preliminar (no el tiempo básico del
-            Excel) y arma una final por año y color con los 5 más rápidos. Corré esto recién cuando
+            Excel) y arma una final por año y color con los 5 más rápidos. Correr esto recién cuando
             todas las series preliminares tengan resultado cargado — si alguna final ya tiene tiempos
-            cargados, no se toca.
+            cargados, NO se toca.
           </p>
           <button className="btn btn--accent" disabled={generando} onClick={handleGenerar}>
             {generando ? 'Generando...' : 'Generar series finales'}

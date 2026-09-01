@@ -4,9 +4,7 @@ import { useCompetition } from '../../context/CompetitionContext'
 import TopBar from '../../components/TopBar'
 import Icon from '../../components/Icon'
 
-// Encabezados aceptados (probamos varias variantes en minúscula/sin
-// tildes, porque no todos van a exportar la planilla con el mismo
-// nombre de columna).
+
 const HEADER_ALIASES = {
   name: ['nombre', 'name', 'alumno', 'apellido y nombre'],
   year: ['año', 'anio', 'year', 'grado', 'curso'],
@@ -57,9 +55,7 @@ function parseRows(XLSX, worksheet) {
 
     const year = Number(yearRaw.replace(/[^\d]/g, ''))
     const seriesNumber = seriesRaw ? Number(seriesRaw.replace(/[^\d]/g, '')) : null
-    // Tiempo básico opcional: si viene mal escrito o vacío, se ignora sin
-    // marcar la fila como inválida — no es un dato obligatorio para el
-    // roster normal, solo lo usa la siembra por colores si está presente.
+
     const tiempoParsed = timeRaw ? Number(timeRaw.replace(',', '.')) : null
     const tiempoBasico = tiempoParsed && tiempoParsed > 0 ? tiempoParsed : null
 
@@ -69,10 +65,10 @@ function parseRows(XLSX, worksheet) {
     if (seriesRaw && (!seriesNumber || seriesNumber < 1)) errors.push('Serie inválida')
 
     return {
-      rowNumber: i + 2, // +2: fila 1 es encabezado, y las planillas empiezan en 1
+      rowNumber: i + 2, 
       name,
       year,
-      seriesNumber: seriesNumber || 1, // si no viene serie, van todos a la serie 1 (se puede reordenar después desde /admin)
+      seriesNumber: seriesNumber || 1, 
       esColegioVisitante: visitor,
       tiempoBasico,
       errors,
@@ -80,7 +76,7 @@ function parseRows(XLSX, worksheet) {
   })
 
   return {
-    rows: rows.filter((r) => r.name || r.year), // ignora filas totalmente vacías
+    rows: rows.filter((r) => r.name || r.year), 
     columnsFound: { nameCol, yearCol, seriesCol, visitorCol, timeCol },
   }
 }
@@ -88,7 +84,7 @@ function parseRows(XLSX, worksheet) {
 export default function AdminImport() {
   const { importParticipants } = useCompetition()
   const navigate = useNavigate()
-  const [parsed, setParsed] = useState(null) // { rows, columnsFound }
+  const [parsed, setParsed] = useState(null)
   const [fileName, setFileName] = useState('')
   const [importing, setImporting] = useState(false)
   const [result, setResult] = useState(null)
@@ -104,9 +100,7 @@ export default function AdminImport() {
     const reader = new FileReader()
     reader.onload = async (evt) => {
       try {
-        // Import dinámico: `xlsx` pesa bastante y sólo hace falta acá, no
-        // en el flujo principal de carga de tiempos que usan los 5
-        // profesores — que no tiene por qué descargarlo.
+
         const XLSX = await import('xlsx')
         const workbook = XLSX.read(evt.target.result, { type: 'binary' })
         const sheet = workbook.Sheets[workbook.SheetNames[0]]
@@ -159,8 +153,7 @@ export default function AdminImport() {
               <div className="tile__label">Subí tu planilla</div>
               <div className="tile__meta">
                 Columnas esperadas: <strong>nombre</strong> y <strong>año</strong> (1 a 6). Opcionales:{' '}
-                <strong>serie</strong>, <strong>visitante</strong> (sí/no) y <strong>tiempo</strong> (para
-                la siembra por colores).
+                <strong>serie</strong>, <strong>visitante</strong> (sí/no) y <strong>tiempo</strong>.
               </div>
               <input type="file" accept=".csv,.xlsx,.xls" onChange={handleFile} style={{ marginTop: 8 }} />
               {fileName && <div className="hint-text">Archivo: {fileName}</div>}

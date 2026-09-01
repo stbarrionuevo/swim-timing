@@ -117,17 +117,17 @@ export default function AdminHome() {
         })}
 
         <div style={{ height: 8 }} />
-        <Link to="/admin/importar" className="btn btn--accent" style={{ textDecoration: 'none' }}>
-          <Icon name="file-import" /> Importar alumnos (CSV / Excel)
-        </Link>
-
-        <Link to="/admin/umbrales" className="btn btn--accent" style={{ textDecoration: 'none' }}>
-           Definir colores
-        </Link>
-
-        <Link to="/admin/finales" className="btn btn--accent" style={{ textDecoration: 'none' }}>
-           Ir a finales
-        </Link>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
+  <Link to="/admin/importar" className="btn btn--accent" style={{ textDecoration: 'none' }}>
+    <Icon name="file-import" /> Importar alumnos (CSV / Excel)
+  </Link>
+  <Link to="/admin/umbrales" className="btn btn--accent" style={{ textDecoration: 'none' }}>
+    <Icon name="palette" /> Definir colores
+  </Link>
+  <Link to="/admin/finales" className="btn btn--accent" style={{ textDecoration: 'none' }}>
+    <Icon name="flag-checkered" /> Ir a finales
+  </Link>
+</div>
         
       </main>
       <BottomNav />
