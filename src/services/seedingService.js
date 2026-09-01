@@ -15,8 +15,8 @@ export async function getUmbrales() {
 }
 
 export async function upsertUmbral(yearNumber, corteRojoAmarillo, corteAmarilloVerde) {
-  if (corteRojoAmarillo >= corteAmarilloVerde) {
-    throw new Error('El corte rojo/amarillo debe ser menor que el corte amarillo/verde');
+  if (corteRojoAmarillo <= corteAmarilloVerde) {
+    throw new Error('El corte rojo/amarillo debe ser mayor que el corte amarillo/verde');
   }
   const { error } = await supabase
     .from('umbrales_color')

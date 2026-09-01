@@ -55,8 +55,8 @@ export default function AdminUmbrales() {
       setTimeout(() => setToast(null), 2500)
       return
     }
-    if (rojoAmarillo >= amarilloVerde) {
-      setToast('El corte rojo/amarillo debe ser menor que el amarillo/verde')
+    if (rojoAmarillo <= amarilloVerde) {
+      setToast('El corte rojo/amarillo debe ser mayor que el amarillo/verde')
       setTimeout(() => setToast(null), 3000)
       return
     }
@@ -163,9 +163,9 @@ export default function AdminUmbrales() {
         <div className="section-label">Series preliminares</div>
         <div className="form-card">
           <p className="hint-text" style={{ marginBottom: 'var(--space-3)' }}>
-            Agrupa a los alumnos que ya tienen tiempo básico cargado en
-            series de 5 por color, del más lento al más rápido. Los que no tienen tiempo básico entran
-            en rojo. Correr esto UNA SOLA vez, después de cargar los umbrales de los 6 años.
+            Agrupa a los alumnos que ya tienen tiempo básico cargado (columna "tiempo" del import) en
+            heats de 5 por color, del más lento al más rápido. Los que no tienen tiempo básico entran
+            en rojo. Corré esto una sola vez, después de cargar los umbrales de los 6 años.
           </p>
           <button className="btn btn--accent" disabled={generando} onClick={handleGenerarPreliminares}>
             {generando ? 'Generando...' : 'Generar series preliminares'}
