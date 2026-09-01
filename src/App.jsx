@@ -9,7 +9,6 @@ import AdminHome from './pages/admin/AdminHome'
 import AdminYear from './pages/admin/AdminYear'
 import AdminImport from './pages/admin/AdminImport'
 import AdminUmbrales from './pages/admin/AdminUmbrales'
-import AdminImportBasicos from './pages/admin/AdminImportBasicos'
 import AdminFinales from './pages/admin/AdminFinales'
 
 
@@ -27,7 +26,6 @@ export default function App() {
           <Route path="/admin/anio/:year" element={<AdminYear />} />
           <Route path="/admin/importar" element={<AdminImport />} />
           <Route path="/admin/umbrales" element={<AdminUmbrales />} />
-          <Route path="/admin/importar-basicos" element={<AdminImportBasicos />} />
           <Route path="/admin/finales" element={<AdminFinales />} />
         </Routes>
       </HashRouter>

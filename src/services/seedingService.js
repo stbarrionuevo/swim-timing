@@ -39,87 +39,53 @@ export function assignColor(tiempoBasico, umbral) {
 }
 
 
-export async function importBaselineTimes(competitionId, rows) {
-  const { data: existentes, error: errQuery } = await supabase
-    .from('participants')
-    .select('id, name, participa, es_colegio_visitante, series:series_id(year_number)')
-    .eq('competition_id', competitionId);
-  if (errQuery) throw errQuery;
+// Arma los heats preliminares leyendo directo de la base: usa el
+// tiempo_basico que cada alumno ya trae desde el import normal de
+// alumnos (columna "tiempo" opcional en AdminImport). Sin tiempo básico
+// cargado, el alumno cae en rojo por defecto (mismo criterio de
+// assignColor). Los "no participa" quedan afuera, sin rellenar el heat.
+export async function generatePreliminarySeries(competitionId) {
+  const [{ data: participantRows, error: errP }, umbrales] = await Promise.all([
+    supabase
+      .from('participants')
+      .select('id, name, tiempo_basico, es_colegio_visitante, participa, series:series_id(year_number)')
+      .eq('competition_id', competitionId),
+    getUmbrales(),
+  ]);
+  if (errP) throw errP;
 
-  const normalize = (s) => (s || '').trim().toLowerCase();
-
-  const participantesPorAnio = {};
-  const resumen = { actualizados: 0, creados: 0, errores: [] };
-
-  for (const row of rows) {
-    const match = existentes.find(
-      (p) =>
-        normalize(p.name) === normalize(row.nombre) &&
-        p.series?.year_number === row.year_number
-    );
-
-    let entry;
-    if (match) {
-      const { error } = await supabase
-        .from('participants')
-        .update({ tiempo_basico: row.tiempo_basico })
-        .eq('id', match.id);
-      if (error) {
-        resumen.errores.push({ nombre: row.nombre, error: error.message });
-        continue;
-      }
-      resumen.actualizados++;
-      entry = {
-        id: match.id,
-        nombre: match.name,
-        tiempo_basico: row.tiempo_basico,
-        es_colegio_visitante: match.es_colegio_visitante,
-        participa: match.participa,
-      };
-    } else {
-      resumen.creados++;
-      entry = {
-        id: null,
-        nombre: row.nombre,
-        tiempo_basico: row.tiempo_basico,
-        es_colegio_visitante: !!row.es_colegio_visitante,
-        participa: true,
-      };
-    }
-
-    if (!participantesPorAnio[row.year_number]) participantesPorAnio[row.year_number] = [];
-    participantesPorAnio[row.year_number].push(entry);
-  }
-
-  return { participantesPorAnio, resumen };
-}
-
-
-export async function generatePreliminarySeries(competitionId, participantesPorAnio) {
-  const umbrales = await getUmbrales();
   const umbralPorAnio = Object.fromEntries(umbrales.map((u) => [u.year_number, u]));
+
+  const porAnio = {};
+  for (const p of participantRows) {
+    const year = p.series?.year_number;
+    if (!year || !p.participa) continue;
+    if (!porAnio[year]) porAnio[year] = [];
+    porAnio[year].push(p);
+  }
 
   const seriesCreadas = [];
 
   for (let year = 1; year <= 6; year++) {
-    const participantes = (participantesPorAnio[year] || []).filter((p) => p.participa);
+    const participantes = porAnio[year] || [];
     const umbral = umbralPorAnio[year];
 
     const grupos = { rojo: [], amarillo: [], verde: [] };
     for (const p of participantes) {
-      const color = assignColor(p.tiempo_basico, umbral);
-      grupos[color].push(p);
+      const tiempo = p.tiempo_basico != null ? Number(p.tiempo_basico) : null;
+      grupos[assignColor(tiempo, umbral)].push({ ...p, tiempo_basico: tiempo });
     }
 
     let seriesNumberEnAnio = 1;
 
     for (const color of COLOR_ORDER) {
-
+      // Orden: más lento (tiempo mayor) primero. Sin tiempo_basico (ya
+      // cayeron en rojo por defecto) van al final del grupo.
       const ordenados = [...grupos[color]].sort((a, b) => {
         if (a.tiempo_basico == null && b.tiempo_basico == null) return 0;
         if (a.tiempo_basico == null) return 1;
         if (b.tiempo_basico == null) return -1;
-        return b.tiempo_basico - a.tiempo_basico; // descendente = más lento primero
+        return b.tiempo_basico - a.tiempo_basico;
       });
 
       for (let i = 0; i < ordenados.length; i += HEAT_SIZE) {
@@ -139,25 +105,11 @@ export async function generatePreliminarySeries(competitionId, participantesPorA
         if (errSerie) throw errSerie;
 
         for (const participante of heat) {
-          if (participante.id) {
-          
-            const { error } = await supabase
-              .from('participants')
-              .update({ series_id: nuevaSerie.id })
-              .eq('id', participante.id);
-            if (error) throw error;
-          } else {
-            // participante nuevo del import, se crea directamente en la serie
-            const { error } = await supabase.from('participants').insert({
-              competition_id: competitionId,
-              series_id: nuevaSerie.id,
-              name: participante.nombre,
-              tiempo_basico: participante.tiempo_basico,
-              es_colegio_visitante: !!participante.es_colegio_visitante,
-              participa: true,
-            });
-            if (error) throw error;
-          }
+          const { error } = await supabase
+            .from('participants')
+            .update({ series_id: nuevaSerie.id })
+            .eq('id', participante.id);
+          if (error) throw error;
         }
 
         seriesCreadas.push({ ...nuevaSerie, cantidad: heat.length });

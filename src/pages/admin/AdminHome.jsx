@@ -120,6 +120,15 @@ export default function AdminHome() {
         <Link to="/admin/importar" className="btn btn--accent" style={{ textDecoration: 'none' }}>
           <Icon name="file-import" /> Importar alumnos (CSV / Excel)
         </Link>
+
+        <Link to="/admin/umbrales" className="btn btn--accent" style={{ textDecoration: 'none' }}>
+           Definir colores
+        </Link>
+
+        <Link to="/admin/finales" className="btn btn--accent" style={{ textDecoration: 'none' }}>
+           Ir a finales
+        </Link>
+        
       </main>
       <BottomNav />
     </div>

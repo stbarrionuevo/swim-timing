@@ -65,6 +65,8 @@ export async function fetchCompetitionData() {
     id: s.id,
     year: s.year_number,
     seriesNumber: s.series_number,
+    tipo: s.tipo,
+    color: s.color,
   }))
 
   return {
@@ -208,6 +210,7 @@ export async function bulkCreateParticipants(rows) {
       series_id: r.seriesId,
       name: r.name,
       es_colegio_visitante: !!r.esColegioVisitante,
+      ...(r.tiempoBasico != null ? { tiempo_basico: r.tiempoBasico } : {}),
     }))
     const { data, error } = await supabase.from('participants').insert(chunk).select()
     if (error) throw error

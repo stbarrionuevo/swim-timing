@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCompetition } from '../../context/CompetitionContext'
 
@@ -6,13 +6,17 @@ const YEARS = [1, 2, 3, 4, 5, 6]
 
 export default function AdminUmbrales() {
   const navigate = useNavigate()
-  const { getUmbrales, upsertUmbral } = useCompetition()
+  const { getUmbrales, upsertUmbral, generatePreliminarySeries } = useCompetition()
 
   // { [year]: { corteRojoAmarillo, corteAmarilloVerde } }
   const [valores, setValores] = useState({})
   const [loading, setLoading] = useState(true)
   const [savingYear, setSavingYear] = useState(null)
   const [toast, setToast] = useState(null)
+
+  const [generando, setGenerando] = useState(false)
+  const [resultadoPreliminares, setResultadoPreliminares] = useState(null)
+  const [errorPreliminares, setErrorPreliminares] = useState(null)
 
   useEffect(() => {
     let activo = true
@@ -68,6 +72,31 @@ export default function AdminUmbrales() {
       setTimeout(() => setToast(null), 2000)
     }
   }
+
+  async function handleGenerarPreliminares() {
+    setGenerando(true)
+    setErrorPreliminares(null)
+    try {
+      const creadas = await generatePreliminarySeries()
+      setResultadoPreliminares(creadas)
+    } catch (err) {
+      setErrorPreliminares(err.message || String(err))
+    } finally {
+      setGenerando(false)
+    }
+  }
+
+  const resumenPorAnio = useMemo(() => {
+    if (!resultadoPreliminares) return []
+    const porAnio = {}
+    for (const s of resultadoPreliminares) {
+      if (!porAnio[s.year_number]) porAnio[s.year_number] = { rojo: 0, amarillo: 0, verde: 0 }
+      porAnio[s.year_number][s.color]++
+    }
+    return Object.entries(porAnio)
+      .map(([year, colores]) => ({ year: Number(year), ...colores }))
+      .sort((a, b) => a.year - b.year)
+  }, [resultadoPreliminares])
 
   return (
     <div className="app-shell">
@@ -130,6 +159,44 @@ export default function AdminUmbrales() {
             ))}
           </div>
         )}
+
+        <div className="section-label">Series preliminares</div>
+        <div className="form-card">
+          <p className="hint-text" style={{ marginBottom: 'var(--space-3)' }}>
+            Agrupa a los alumnos que ya tienen tiempo básico cargado (columna "tiempo" del import) en
+            heats de 5 por color, del más lento al más rápido. Los que no tienen tiempo básico entran
+            en rojo. Corré esto una sola vez, después de cargar los umbrales de los 6 años.
+          </p>
+          <button className="btn btn--accent" disabled={generando} onClick={handleGenerarPreliminares}>
+            {generando ? 'Generando...' : 'Generar series preliminares'}
+          </button>
+
+          {errorPreliminares && (
+            <p className="hint-text" style={{ color: 'var(--danger)', marginTop: 8 }}>
+              {errorPreliminares}
+            </p>
+          )}
+
+          {resultadoPreliminares && (
+            <div style={{ marginTop: 'var(--space-4)' }}>
+              <p className="hint-text" style={{ marginBottom: 8 }}>
+                {resultadoPreliminares.length} series creadas.
+              </p>
+              {resumenPorAnio.map((r) => (
+                <div className="preview-row" key={r.year}>
+                  <div className="preview-row__info">
+                    <div className="preview-row__name">{r.year}° año</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <span className="color-badge color-badge--rojo">{r.rojo}</span>
+                    <span className="color-badge color-badge--amarillo">{r.amarillo}</span>
+                    <span className="color-badge color-badge--verde">{r.verde}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </main>
 
       {toast && <div className="toast">{toast}</div>}

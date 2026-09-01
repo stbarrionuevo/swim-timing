@@ -12,6 +12,7 @@ const HEADER_ALIASES = {
   year: ['año', 'anio', 'year', 'grado', 'curso'],
   series: ['serie', 'series', 'heat'],
   visitor: ['visitante', 'visitor', 'colegio visitante', 'invitado'],
+  time: ['tiempo', 'tiempo basico', 'tiempo básico', 'tiempo_basico', 'time'],
 }
 
 function normalizeHeader(h) {
@@ -45,15 +46,22 @@ function parseRows(XLSX, worksheet) {
   const yearCol = findColumn(headers, HEADER_ALIASES.year)
   const seriesCol = findColumn(headers, HEADER_ALIASES.series)
   const visitorCol = findColumn(headers, HEADER_ALIASES.visitor)
+  const timeCol = findColumn(headers, HEADER_ALIASES.time)
 
   const rows = raw.slice(1).map((cells, i) => {
     const name = nameCol !== -1 ? String(cells[nameCol] || '').trim() : ''
     const yearRaw = yearCol !== -1 ? String(cells[yearCol] || '').trim() : ''
     const seriesRaw = seriesCol !== -1 ? String(cells[seriesCol] || '').trim() : ''
     const visitor = visitorCol !== -1 ? parseVisitor(cells[visitorCol]) : false
+    const timeRaw = timeCol !== -1 ? String(cells[timeCol] || '').trim() : ''
 
     const year = Number(yearRaw.replace(/[^\d]/g, ''))
     const seriesNumber = seriesRaw ? Number(seriesRaw.replace(/[^\d]/g, '')) : null
+    // Tiempo básico opcional: si viene mal escrito o vacío, se ignora sin
+    // marcar la fila como inválida — no es un dato obligatorio para el
+    // roster normal, solo lo usa la siembra por colores si está presente.
+    const tiempoParsed = timeRaw ? Number(timeRaw.replace(',', '.')) : null
+    const tiempoBasico = tiempoParsed && tiempoParsed > 0 ? tiempoParsed : null
 
     const errors = []
     if (!name) errors.push('Falta el nombre')
@@ -66,13 +74,14 @@ function parseRows(XLSX, worksheet) {
       year,
       seriesNumber: seriesNumber || 1, // si no viene serie, van todos a la serie 1 (se puede reordenar después desde /admin)
       esColegioVisitante: visitor,
+      tiempoBasico,
       errors,
     }
   })
 
   return {
     rows: rows.filter((r) => r.name || r.year), // ignora filas totalmente vacías
-    columnsFound: { nameCol, yearCol, seriesCol, visitorCol },
+    columnsFound: { nameCol, yearCol, seriesCol, visitorCol, timeCol },
   }
 }
 
@@ -130,6 +139,7 @@ export default function AdminImport() {
           year: r.year,
           seriesNumber: r.seriesNumber,
           esColegioVisitante: r.esColegioVisitante,
+          tiempoBasico: r.tiempoBasico,
         }))
       )
       setResult(summary)
@@ -149,7 +159,8 @@ export default function AdminImport() {
               <div className="tile__label">Subí tu planilla</div>
               <div className="tile__meta">
                 Columnas esperadas: <strong>nombre</strong> y <strong>año</strong> (1 a 6). Opcionales:{' '}
-                <strong>serie</strong> y <strong>visitante</strong> (sí/no).
+                <strong>serie</strong>, <strong>visitante</strong> (sí/no) y <strong>tiempo</strong> (para
+                la siembra por colores).
               </div>
               <input type="file" accept=".csv,.xlsx,.xls" onChange={handleFile} style={{ marginTop: 8 }} />
               {fileName && <div className="hint-text">Archivo: {fileName}</div>}
@@ -205,6 +216,7 @@ export default function AdminImport() {
                 </div>
                 <div className="hint-text">
                   {r.year}° año · Serie {r.seriesNumber}
+                  {r.tiempoBasico ? ` · Tiempo básico: ${r.tiempoBasico}s` : ''}
                 </div>
               </div>
             ))}

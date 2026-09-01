@@ -589,6 +589,7 @@ export function CompetitionProvider({ children }) {
           seriesId: series.id,
           name: r.name,
           esColegioVisitante: r.esColegioVisitante,
+          tiempoBasico: r.tiempoBasico ?? null,
         }
       })
 
@@ -684,24 +685,15 @@ export function CompetitionProvider({ children }) {
     []
   )
 
-  const importBaselineTimes = useCallback(
-    async (rows) => {
-      if (!state.competition) throw new Error('Todavía no se cargó la competencia.')
-      return seedingService.importBaselineTimes(state.competition.id, rows)
-    },
-    [state.competition]
-  )
-
   // Las series y participantes que crea esto llegan solas por el mismo
   // canal de Realtime que ya escucha series/participants — no hace falta
-  // dispatch manual acá, ni en generateFinalSeries.
-  const generatePreliminarySeries = useCallback(
-    async (participantesPorAnio) => {
-      if (!state.competition) throw new Error('Todavía no se cargó la competencia.')
-      return seedingService.generatePreliminarySeries(state.competition.id, participantesPorAnio)
-    },
-    [state.competition]
-  )
+  // dispatch manual acá, ni en generateFinalSeries. Arma los heats leyendo
+  // directo de la base el tiempo_basico de cada alumno (cargado al
+  // importarlo desde AdminImport).
+  const generatePreliminarySeries = useCallback(async () => {
+    if (!state.competition) throw new Error('Todavía no se cargó la competencia.')
+    return seedingService.generatePreliminarySeries(state.competition.id)
+  }, [state.competition])
 
   const generateFinalSeries = useCallback(async () => {
     if (!state.competition) throw new Error('Todavía no se cargó la competencia.')
@@ -772,7 +764,6 @@ export function CompetitionProvider({ children }) {
       getRankingGeneral,
       getUmbrales,
       upsertUmbral,
-      importBaselineTimes,
       generatePreliminarySeries,
       generateFinalSeries,
       getSeriesListForYearByTipo,
@@ -803,7 +794,6 @@ export function CompetitionProvider({ children }) {
       getRankingGeneral,
       getUmbrales,
       upsertUmbral,
-      importBaselineTimes,
       generatePreliminarySeries,
       generateFinalSeries,
       getSeriesListForYearByTipo,
