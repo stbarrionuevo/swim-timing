@@ -775,7 +775,7 @@ export function CompetitionProvider({ children }) {
       liveStatus: state.liveStatus,
       isOnline: state.isOnline,
       pendingCount: state.pendingCount,
-      years: [1, 2, 3, 4, 5, 6],
+      years: [3, 4, 5, 6],
       turnos: ['mañana', 'tarde'],
       reload,
       saveTime,
