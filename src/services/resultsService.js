@@ -50,9 +50,11 @@ export async function fetchCompetitionData() {
       competitionId: p.competition_id,
       seriesId: p.series_id,
       year: seriesRow?.year_number,
+      turno: seriesRow?.turno,
       series: seriesRow?.series_number,
       name: p.name,
       esColegioVisitante: p.es_colegio_visitante,
+      mediaPileta: p.media_pileta,
       participa: p.participa,
       result: {
         time: result ? Number(result.time) : null,
@@ -64,6 +66,7 @@ export async function fetchCompetitionData() {
   const series = seriesRows.map((s) => ({
     id: s.id,
     year: s.year_number,
+    turno: s.turno,
     seriesNumber: s.series_number,
     tipo: s.tipo,
     color: s.color,
@@ -165,15 +168,20 @@ export async function setParticipantVisitor(participantId, isVisitor) {
 }
 
 
-export async function addSeries(competitionId, year, seriesNumber) {
+export async function addSeries(competitionId, year, turno, seriesNumber) {
   const { data, error } = await supabase
     .from('series')
-    .insert({ competition_id: competitionId, year_number: year, series_number: seriesNumber })
+    .insert({
+      competition_id: competitionId,
+      year_number: year,
+      turno,
+      series_number: seriesNumber,
+    })
     .select()
     .single()
 
   if (error) throw error
-  return { id: data.id, year: data.year_number, seriesNumber: data.series_number }
+  return { id: data.id, year: data.year_number, turno: data.turno, seriesNumber: data.series_number }
 }
 
 
@@ -223,6 +231,7 @@ export async function updateParticipant(participantId, patch) {
   const dbPatch = {}
   if (patch.name !== undefined) dbPatch.name = patch.name
   if (patch.esColegioVisitante !== undefined) dbPatch.es_colegio_visitante = patch.esColegioVisitante
+  if (patch.mediaPileta !== undefined) dbPatch.media_pileta = patch.mediaPileta
   if (patch.seriesId !== undefined) dbPatch.series_id = patch.seriesId
 
   const { data, error } = await supabase

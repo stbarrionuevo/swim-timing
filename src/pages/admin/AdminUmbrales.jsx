@@ -2,16 +2,19 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCompetition } from '../../context/CompetitionContext'
 
-const YEARS = [1, 2, 3, 4, 5, 6]
+const TURNOS = [
+  { key: 'mañana', label: 'Mañana (3ro a 6to)' },
+  { key: 'tarde', label: 'Tarde (3ro a 6to, dos bloques horarios)' },
+]
 
 export default function AdminUmbrales() {
   const navigate = useNavigate()
   const { getUmbrales, upsertUmbral, generatePreliminarySeries } = useCompetition()
 
-  // { [year]: { corteRojoAmarillo, corteAmarilloVerde } }
+  // { [turno]: { corteAmarilloVerde, corteRojoAmarillo, corteMediaPileta } }
   const [valores, setValores] = useState({})
   const [loading, setLoading] = useState(true)
-  const [savingYear, setSavingYear] = useState(null)
+  const [savingTurno, setSavingTurno] = useState(null)
   const [toast, setToast] = useState(null)
 
   const [generando, setGenerando] = useState(false)
@@ -25,9 +28,10 @@ export default function AdminUmbrales() {
         if (!activo) return
         const next = {}
         for (const row of rows) {
-          next[row.year_number] = {
-            corteRojoAmarillo: String(row.corte_rojo_amarillo),
+          next[row.turno] = {
             corteAmarilloVerde: String(row.corte_amarillo_verde),
+            corteRojoAmarillo: String(row.corte_rojo_amarillo),
+            corteMediaPileta: String(row.corte_media_pileta),
           }
         }
         setValores(next)
@@ -38,37 +42,45 @@ export default function AdminUmbrales() {
     }
   }, [getUmbrales])
 
-  function handleChange(year, campo, value) {
+  function handleChange(turno, campo, value) {
     setValores((prev) => ({
       ...prev,
-      [year]: { ...prev[year], [campo]: value },
+      [turno]: { ...prev[turno], [campo]: value },
     }))
   }
 
-  async function handleGuardar(year) {
-    const v = valores[year]
-    const rojoAmarillo = Number(v?.corteRojoAmarillo)
+  async function handleGuardar(turno) {
+    const v = valores[turno]
     const amarilloVerde = Number(v?.corteAmarilloVerde)
+    const rojoAmarillo = Number(v?.corteRojoAmarillo)
+    const mediaPileta = Number(v?.corteMediaPileta)
 
-    if (!v?.corteRojoAmarillo || !v?.corteAmarilloVerde || Number.isNaN(rojoAmarillo) || Number.isNaN(amarilloVerde)) {
-      setToast('Completá los dos tiempos para guardar')
+    if (
+      !v?.corteAmarilloVerde ||
+      !v?.corteRojoAmarillo ||
+      !v?.corteMediaPileta ||
+      Number.isNaN(amarilloVerde) ||
+      Number.isNaN(rojoAmarillo) ||
+      Number.isNaN(mediaPileta)
+    ) {
+      setToast('Completá los tres tiempos para guardar')
       setTimeout(() => setToast(null), 2500)
       return
     }
-    if (rojoAmarillo <= amarilloVerde) {
-      setToast('El corte rojo/amarillo debe ser mayor que el amarillo/verde')
+    if (!(amarilloVerde < rojoAmarillo && rojoAmarillo < mediaPileta)) {
+      setToast('El orden tiene que ser: amarillo/verde < rojo/amarillo < media pileta')
       setTimeout(() => setToast(null), 3000)
       return
     }
 
-    setSavingYear(year)
+    setSavingTurno(turno)
     try {
-      await upsertUmbral(year, rojoAmarillo, amarilloVerde)
-      setToast(`${year}° año guardado`)
+      await upsertUmbral(turno, amarilloVerde, rojoAmarillo, mediaPileta)
+      setToast(`Turno ${turno} guardado`)
     } catch (err) {
       setToast(`Error: ${err.message || err}`)
     } finally {
-      setSavingYear(null)
+      setSavingTurno(null)
       setTimeout(() => setToast(null), 2000)
     }
   }
@@ -86,16 +98,24 @@ export default function AdminUmbrales() {
     }
   }
 
-  const resumenPorAnio = useMemo(() => {
+  const resumen = useMemo(() => {
     if (!resultadoPreliminares) return []
-    const porAnio = {}
+    const porTurnoAnio = {}
     for (const s of resultadoPreliminares) {
-      if (!porAnio[s.year_number]) porAnio[s.year_number] = { rojo: 0, amarillo: 0, verde: 0 }
-      porAnio[s.year_number][s.color]++
+      const key = `${s.turno}-${s.year_number}`
+      porTurnoAnio[key] ??= {
+        turno: s.turno,
+        year: s.year_number,
+        media_pileta: 0,
+        rojo: 0,
+        amarillo: 0,
+        verde: 0,
+      }
+      porTurnoAnio[key][s.color]++
     }
-    return Object.entries(porAnio)
-      .map(([year, colores]) => ({ year: Number(year), ...colores }))
-      .sort((a, b) => a.year - b.year)
+    return Object.values(porTurnoAnio).sort((a, b) =>
+      a.turno === b.turno ? a.year - b.year : a.turno === 'mañana' ? -1 : 1
+    )
   }, [resultadoPreliminares])
 
   return (
@@ -106,54 +126,68 @@ export default function AdminUmbrales() {
         </button>
         <div>
           <div className="topbar__title">Umbrales de color</div>
-          <div className="topbar__subtitle">Cortes de tiempo por año</div>
+          <div className="topbar__subtitle">Cortes de tiempo por turno</div>
         </div>
       </header>
 
       <main>
         <p className="hint-text" style={{ marginBottom: 'var(--space-4)' }}>
-          Un tiempo mayor al corte "rojo/amarillo" queda en rojo. Entre los dos cortes, amarillo.
-          Un tiempo menor o igual al corte "amarillo/verde" queda en verde.
+          Los cortes son fijos por turno (mañana / tarde), no por año. Un tiempo mayor al corte
+          "media pileta" nada medio largo en vez de 25m completos. Entre ese corte y el de
+          rojo/amarillo, rojo. Entre rojo/amarillo y amarillo/verde, amarillo. Un tiempo menor o
+          igual al corte amarillo/verde, verde.
         </p>
 
         {loading ? (
           <div className="empty-state">Cargando...</div>
         ) : (
           <div className="form-card">
-            {YEARS.map((year) => (
-              <div className="umbral-row" key={year}>
-                <div className="umbral-row__year">{year}°</div>
+            {TURNOS.map(({ key, label }) => (
+              <div className="umbral-row" key={key} style={{ flexWrap: 'wrap' }}>
+                <div className="umbral-row__year">{label}</div>
                 <div className="umbral-row__field">
-                  <div className="umbral-row__field-label">ROJO → AMARILLO</div>
+                  <div className="umbral-row__field-label">VERDE → AMARILLO</div>
                   <input
                     className="field-input"
                     type="number"
                     step="0.01"
                     inputMode="decimal"
                     placeholder="seg"
-                    value={valores[year]?.corteRojoAmarillo ?? ''}
-                    onChange={(e) => handleChange(year, 'corteRojoAmarillo', e.target.value)}
+                    value={valores[key]?.corteAmarilloVerde ?? ''}
+                    onChange={(e) => handleChange(key, 'corteAmarilloVerde', e.target.value)}
                   />
                 </div>
                 <div className="umbral-row__field">
-                  <div className="umbral-row__field-label">AMARILLO → VERDE</div>
+                  <div className="umbral-row__field-label">AMARILLO → ROJO</div>
                   <input
                     className="field-input"
                     type="number"
                     step="0.01"
                     inputMode="decimal"
                     placeholder="seg"
-                    value={valores[year]?.corteAmarilloVerde ?? ''}
-                    onChange={(e) => handleChange(year, 'corteAmarilloVerde', e.target.value)}
+                    value={valores[key]?.corteRojoAmarillo ?? ''}
+                    onChange={(e) => handleChange(key, 'corteRojoAmarillo', e.target.value)}
+                  />
+                </div>
+                <div className="umbral-row__field">
+                  <div className="umbral-row__field-label">ROJO → MEDIA PILETA</div>
+                  <input
+                    className="field-input"
+                    type="number"
+                    step="0.01"
+                    inputMode="decimal"
+                    placeholder="seg"
+                    value={valores[key]?.corteMediaPileta ?? ''}
+                    onChange={(e) => handleChange(key, 'corteMediaPileta', e.target.value)}
                   />
                 </div>
                 <button
                   className="btn btn--ghost"
                   style={{ width: 'auto', minHeight: 44, padding: '0 14px' }}
-                  disabled={savingYear === year}
-                  onClick={() => handleGuardar(year)}
+                  disabled={savingTurno === key}
+                  onClick={() => handleGuardar(key)}
                 >
-                  {savingYear === year ? '...' : 'Guardar'}
+                  {savingTurno === key ? '...' : 'Guardar'}
                 </button>
               </div>
             ))}
@@ -164,8 +198,9 @@ export default function AdminUmbrales() {
         <div className="form-card">
           <p className="hint-text" style={{ marginBottom: 'var(--space-3)' }}>
             Agrupa a los alumnos que ya tienen tiempo básico cargado (columna "tiempo" del import) en
-            heats de 5 por color, del más lento al más rápido. Los que no tienen tiempo básico entran
-            en rojo. Corré esto una sola vez, después de cargar los umbrales de los 6 años.
+            heats de 5 por turno + año + color, del más lento al más rápido. Los que no tienen tiempo
+            básico entran en rojo. Corré esto una sola vez, después de cargar los umbrales de los 2
+            turnos.
           </p>
           <button className="btn btn--accent" disabled={generando} onClick={handleGenerarPreliminares}>
             {generando ? 'Generando...' : 'Generar series preliminares'}
@@ -182,12 +217,15 @@ export default function AdminUmbrales() {
               <p className="hint-text" style={{ marginBottom: 8 }}>
                 {resultadoPreliminares.length} series creadas.
               </p>
-              {resumenPorAnio.map((r) => (
-                <div className="preview-row" key={r.year}>
+              {resumen.map((r) => (
+                <div className="preview-row" key={`${r.turno}-${r.year}`}>
                   <div className="preview-row__info">
-                    <div className="preview-row__name">{r.year}° año</div>
+                    <div className="preview-row__name">
+                      {r.turno} · {r.year}° año
+                    </div>
                   </div>
                   <div style={{ display: 'flex', gap: 6 }}>
+                    <span className="color-badge color-badge--media-pileta">{r.media_pileta}</span>
                     <span className="color-badge color-badge--rojo">{r.rojo}</span>
                     <span className="color-badge color-badge--amarillo">{r.amarillo}</span>
                     <span className="color-badge color-badge--verde">{r.verde}</span>

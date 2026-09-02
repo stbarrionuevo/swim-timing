@@ -179,9 +179,11 @@ function reducer(state, action) {
             competitionId: row.competition_id,
             seriesId: row.series_id,
             year: seriesRow.year,
+            turno: seriesRow.turno,
             series: seriesRow.seriesNumber,
             name: row.name,
             esColegioVisitante: row.es_colegio_visitante,
+            mediaPileta: row.media_pileta,
             participa: row.participa,
             result: { time: null, updatedAt: null, pending: false },
           },
@@ -264,6 +266,7 @@ export function CompetitionProvider({ children }) {
             series: {
               id: row.id,
               year: row.year_number,
+              turno: row.turno,
               seriesNumber: row.series_number,
               tipo: row.tipo,
               color: row.color,
@@ -475,10 +478,12 @@ export function CompetitionProvider({ children }) {
     }
   }, [])
 
+  // turno se agrega como parámetro obligatorio: series_number ya no es
+  // único solo por año, depende también del turno (mañana/tarde).
   const addSeries = useCallback(
-    async (year, seriesNumber) => {
+    async (year, turno, seriesNumber) => {
       if (!state.competition) return
-      const series = await dataService.addSeries(state.competition.id, year, seriesNumber)
+      const series = await dataService.addSeries(state.competition.id, year, turno, seriesNumber)
       dispatch({ type: 'ADD_SERIES', series })
       return series
     },
@@ -491,18 +496,20 @@ export function CompetitionProvider({ children }) {
   }, [])
 
   const findOrCreateSeries = useCallback(
-    async (year, seriesNumber) => {
-      const existing = state.series.find((s) => s.year === year && s.seriesNumber === seriesNumber)
+    async (year, turno, seriesNumber) => {
+      const existing = state.series.find(
+        (s) => s.year === year && s.turno === turno && s.seriesNumber === seriesNumber
+      )
       if (existing) return existing
-      return addSeries(year, seriesNumber)
+      return addSeries(year, turno, seriesNumber)
     },
     [state.series, addSeries]
   )
 
   const createParticipant = useCallback(
-    async ({ year, seriesNumber, name, esColegioVisitante }) => {
+    async ({ year, turno, seriesNumber, name, esColegioVisitante }) => {
       if (!state.competition) throw new Error('Todavía no se cargó la competencia.')
-      const series = await findOrCreateSeries(year, seriesNumber)
+      const series = await findOrCreateSeries(year, turno, seriesNumber)
       const row = await dataService.createParticipant({
         competitionId: state.competition.id,
         seriesId: series.id,
@@ -514,9 +521,11 @@ export function CompetitionProvider({ children }) {
         competitionId: row.competition_id,
         seriesId: row.series_id,
         year,
+        turno,
         series: seriesNumber,
         name: row.name,
         esColegioVisitante: row.es_colegio_visitante,
+        mediaPileta: row.media_pileta,
         participa: row.participa,
         result: { time: null, updatedAt: null, pending: false },
       }
@@ -529,12 +538,16 @@ export function CompetitionProvider({ children }) {
   const updateParticipant = useCallback(
     async (participantId, patch) => {
 
-      const dbPatch = { name: patch.name, esColegioVisitante: patch.esColegioVisitante }
+      const dbPatch = {
+        name: patch.name,
+        esColegioVisitante: patch.esColegioVisitante,
+        mediaPileta: patch.mediaPileta,
+      }
       let extra = {}
-      if (patch.year !== undefined && patch.seriesNumber !== undefined) {
-        const series = await findOrCreateSeries(patch.year, patch.seriesNumber)
+      if (patch.year !== undefined && patch.turno !== undefined && patch.seriesNumber !== undefined) {
+        const series = await findOrCreateSeries(patch.year, patch.turno, patch.seriesNumber)
         dbPatch.seriesId = series.id
-        extra = { year: patch.year, series: patch.seriesNumber, seriesId: series.id }
+        extra = { year: patch.year, turno: patch.turno, series: patch.seriesNumber, seriesId: series.id }
       }
       await dataService.updateParticipant(participantId, dbPatch)
       dispatch({
@@ -545,6 +558,7 @@ export function CompetitionProvider({ children }) {
           ...(patch.esColegioVisitante !== undefined
             ? { esColegioVisitante: patch.esColegioVisitante }
             : {}),
+          ...(patch.mediaPileta !== undefined ? { mediaPileta: patch.mediaPileta } : {}),
           ...extra,
         },
       })
@@ -571,19 +585,23 @@ export function CompetitionProvider({ children }) {
     async (rows) => {
       if (!state.competition) throw new Error('Todavía no se cargó la competencia.')
 
-      const seriesKeys = [...new Set(rows.map((r) => `${r.year}-${r.seriesNumber}`))]
+      const seriesKeys = [...new Set(rows.map((r) => `${r.year}-${r.turno}-${r.seriesNumber}`))]
       const seriesByKey = new Map()
       let createdSeriesCount = 0
       for (const key of seriesKeys) {
-        const [year, seriesNumber] = key.split('-').map(Number)
-        const existed = state.series.some((s) => s.year === year && s.seriesNumber === seriesNumber)
-        const series = await findOrCreateSeries(year, seriesNumber)
+        const [yearStr, turno, seriesNumberStr] = key.split('-')
+        const year = Number(yearStr)
+        const seriesNumber = Number(seriesNumberStr)
+        const existed = state.series.some(
+          (s) => s.year === year && s.turno === turno && s.seriesNumber === seriesNumber
+        )
+        const series = await findOrCreateSeries(year, turno, seriesNumber)
         if (!existed) createdSeriesCount++
         seriesByKey.set(key, series)
       }
 
       const toInsert = rows.map((r) => {
-        const series = seriesByKey.get(`${r.year}-${r.seriesNumber}`)
+        const series = seriesByKey.get(`${r.year}-${r.turno}-${r.seriesNumber}`)
         return {
           competitionId: state.competition.id,
           seriesId: series.id,
@@ -603,9 +621,11 @@ export function CompetitionProvider({ children }) {
           competitionId: row.competition_id,
           seriesId: row.series_id,
           year: original?.year,
+          turno: original?.turno,
           series: original?.seriesNumber,
           name: row.name,
           esColegioVisitante: row.es_colegio_visitante,
+          mediaPileta: row.media_pileta,
           participa: row.participa,
           result: { time: null, updatedAt: null, pending: false },
         }
@@ -619,14 +639,17 @@ export function CompetitionProvider({ children }) {
 
 
 
+  // year+turno identifican la serie sin ambigüedad: series_number ya no
+  // es único solo dentro de un año (año 3 serie 1 mañana != año 3 serie 1
+  // tarde), así que turno es obligatorio en estos tres getters.
   const getSeriesListForYear = useCallback(
-    (year) =>
+    (year, turno) =>
       state.series
-        .filter((s) => s.year === year)
+        .filter((s) => s.year === year && s.turno === turno)
         .sort((a, b) => a.seriesNumber - b.seriesNumber)
         .map((s) => {
           const participants = state.participants.filter(
-            (p) => p.year === year && p.series === s.seriesNumber
+            (p) => p.year === year && p.turno === turno && p.series === s.seriesNumber
           )
           const activeParticipants = participants.filter((p) => p.participa)
           const loaded = activeParticipants.filter((p) => p.result.time !== null)
@@ -639,6 +662,7 @@ export function CompetitionProvider({ children }) {
           return {
             id: s.id,
             year,
+            turno,
             seriesNumber: s.seriesNumber,
             participantCount: participants.length,
             loadedCount: loaded.length,
@@ -650,13 +674,16 @@ export function CompetitionProvider({ children }) {
   )
 
   const getParticipantsForSeries = useCallback(
-    (year, seriesNumber) =>
+    (year, turno, seriesNumber) =>
       state.participants
-        .filter((p) => p.year === year && p.series === seriesNumber)
+        .filter((p) => p.year === year && p.turno === turno && p.series === seriesNumber)
         .sort((a, b) => a.name.localeCompare(b.name)),
     [state.participants]
   )
 
+  // El ranking sigue siendo por año únicamente (mezcla turno mañana y
+  // tarde): compite el tiempo real nadado, no importa en qué franja
+  // horaria corrió. El turno es solo un criterio de organización/siembra.
   const getRankingForYear = useCallback(
     (year) =>
       state.participants
@@ -674,14 +701,15 @@ export function CompetitionProvider({ children }) {
   )
 
   // ---------------------------------------------------------------------
-  // Siembra por colores (rojo/amarillo/verde) — wrappers de seedingService
+  // Siembra por colores (rojo/amarillo/verde/media_pileta) — wrappers de
+  // seedingService. Umbrales fijos por turno (mañana/tarde), no por año.
   // ---------------------------------------------------------------------
 
   const getUmbrales = useCallback(() => seedingService.getUmbrales(), [])
 
   const upsertUmbral = useCallback(
-    (yearNumber, corteRojoAmarillo, corteAmarilloVerde) =>
-      seedingService.upsertUmbral(yearNumber, corteRojoAmarillo, corteAmarilloVerde),
+    (turno, corteAmarilloVerde, corteRojoAmarillo, corteMediaPileta) =>
+      seedingService.upsertUmbral(turno, corteAmarilloVerde, corteRojoAmarillo, corteMediaPileta),
     []
   )
 
@@ -689,7 +717,8 @@ export function CompetitionProvider({ children }) {
   // canal de Realtime que ya escucha series/participants — no hace falta
   // dispatch manual acá, ni en generateFinalSeries. Arma los heats leyendo
   // directo de la base el tiempo_basico de cada alumno (cargado al
-  // importarlo desde AdminImport).
+  // importarlo desde AdminImport) y el turno de la serie donde está cada
+  // alumno hoy.
   const generatePreliminarySeries = useCallback(async () => {
     if (!state.competition) throw new Error('Todavía no se cargó la competencia.')
     return seedingService.generatePreliminarySeries(state.competition.id)
@@ -701,17 +730,18 @@ export function CompetitionProvider({ children }) {
   }, [state.competition])
 
   // Igual que getSeriesListForYear, pero filtrando por tipo ('normal' por
-  // defecto para no romper las pantallas existentes). Para ver las series
-  // de la ronda de colores: getSeriesListForYearByTipo(year, 'preliminar')
-  // / getSeriesListForYearByTipo(year, 'final').
+  // defecto para no romper las pantallas existentes) y turno. Para ver
+  // las series de la ronda de colores:
+  // getSeriesListForYearByTipo(year, turno, 'preliminar')
+  // getSeriesListForYearByTipo(year, turno, 'final')
   const getSeriesListForYearByTipo = useCallback(
-    (year, tipo = 'normal') =>
+    (year, turno, tipo = 'normal') =>
       state.series
-        .filter((s) => s.year === year && (s.tipo || 'normal') === tipo)
+        .filter((s) => s.year === year && s.turno === turno && (s.tipo || 'normal') === tipo)
         .sort((a, b) => a.seriesNumber - b.seriesNumber)
         .map((s) => {
           const participants = state.participants.filter(
-            (p) => p.year === year && p.series === s.seriesNumber
+            (p) => p.year === year && p.turno === turno && p.series === s.seriesNumber
           )
           const activeParticipants = participants.filter((p) => p.participa)
           const loaded = activeParticipants.filter((p) => p.result.time !== null)
@@ -724,6 +754,7 @@ export function CompetitionProvider({ children }) {
           return {
             id: s.id,
             year,
+            turno,
             seriesNumber: s.seriesNumber,
             tipo: s.tipo || 'normal',
             color: s.color || null,
@@ -745,6 +776,7 @@ export function CompetitionProvider({ children }) {
       isOnline: state.isOnline,
       pendingCount: state.pendingCount,
       years: [1, 2, 3, 4, 5, 6],
+      turnos: ['mañana', 'tarde'],
       reload,
       saveTime,
       setAbsent,

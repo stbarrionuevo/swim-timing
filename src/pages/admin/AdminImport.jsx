@@ -6,11 +6,21 @@ import Icon from '../../components/Icon'
 
 
 const HEADER_ALIASES = {
-  name: ['nombre', 'name', 'alumno', 'apellido y nombre'],
+  name: ['nombre', 'name', 'alumno', 'apellido y nombre', 'nombre y apellido'],
   year: ['año', 'anio', 'year', 'grado', 'curso'],
+  turno: ['turno', 'shift'],
   series: ['serie', 'series', 'heat'],
   visitor: ['visitante', 'visitor', 'colegio visitante', 'invitado'],
-  time: ['tiempo', 'tiempo basico', 'tiempo básico', 'tiempo_basico', 'time'],
+  time: [
+    'tiempo',
+    'tiempo basico',
+    'tiempo básico',
+    'tiempo_basico',
+    'time',
+    'tiempo (seg, normalizado)',
+    'tiempo normalizado',
+    'tiempo_seg',
+  ],
 }
 
 function normalizeHeader(h) {
@@ -35,6 +45,15 @@ function parseVisitor(value) {
   return ['si', 'sí', 'true', '1', 'x', 'yes'].includes(v)
 }
 
+// Acepta "mañana"/"tarde" (con o sin tilde, cualquier capitalización).
+// normalizeHeader ya saca tildes, así que "mañana" llega como "manana".
+function parseTurno(value) {
+  const v = normalizeHeader(value)
+  if (v === 'manana' || v === 'am') return 'mañana'
+  if (v === 'tarde' || v === 'pm') return 'tarde'
+  return null
+}
+
 function parseRows(XLSX, worksheet) {
   const raw = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' })
   if (raw.length === 0) return { rows: [], columnsFound: {} }
@@ -42,6 +61,7 @@ function parseRows(XLSX, worksheet) {
   const headers = raw[0]
   const nameCol = findColumn(headers, HEADER_ALIASES.name)
   const yearCol = findColumn(headers, HEADER_ALIASES.year)
+  const turnoCol = findColumn(headers, HEADER_ALIASES.turno)
   const seriesCol = findColumn(headers, HEADER_ALIASES.series)
   const visitorCol = findColumn(headers, HEADER_ALIASES.visitor)
   const timeCol = findColumn(headers, HEADER_ALIASES.time)
@@ -49,11 +69,13 @@ function parseRows(XLSX, worksheet) {
   const rows = raw.slice(1).map((cells, i) => {
     const name = nameCol !== -1 ? String(cells[nameCol] || '').trim() : ''
     const yearRaw = yearCol !== -1 ? String(cells[yearCol] || '').trim() : ''
+    const turnoRaw = turnoCol !== -1 ? cells[turnoCol] : ''
     const seriesRaw = seriesCol !== -1 ? String(cells[seriesCol] || '').trim() : ''
     const visitor = visitorCol !== -1 ? parseVisitor(cells[visitorCol]) : false
     const timeRaw = timeCol !== -1 ? String(cells[timeCol] || '').trim() : ''
 
     const year = Number(yearRaw.replace(/[^\d]/g, ''))
+    const turno = parseTurno(turnoRaw)
     const seriesNumber = seriesRaw ? Number(seriesRaw.replace(/[^\d]/g, '')) : null
 
     const tiempoParsed = timeRaw ? Number(timeRaw.replace(',', '.')) : null
@@ -62,13 +84,15 @@ function parseRows(XLSX, worksheet) {
     const errors = []
     if (!name) errors.push('Falta el nombre')
     if (!year || year < 1 || year > 6) errors.push('Año inválido (debe ser 1-6)')
+    if (!turno) errors.push('Turno inválido (debe ser "mañana" o "tarde")')
     if (seriesRaw && (!seriesNumber || seriesNumber < 1)) errors.push('Serie inválida')
 
     return {
-      rowNumber: i + 2, 
+      rowNumber: i + 2,
       name,
       year,
-      seriesNumber: seriesNumber || 1, 
+      turno,
+      seriesNumber: seriesNumber || 1,
       esColegioVisitante: visitor,
       tiempoBasico,
       errors,
@@ -76,8 +100,8 @@ function parseRows(XLSX, worksheet) {
   })
 
   return {
-    rows: rows.filter((r) => r.name || r.year), 
-    columnsFound: { nameCol, yearCol, seriesCol, visitorCol, timeCol },
+    rows: rows.filter((r) => r.name || r.year),
+    columnsFound: { nameCol, yearCol, turnoCol, seriesCol, visitorCol, timeCol },
   }
 }
 
@@ -105,9 +129,9 @@ export default function AdminImport() {
         const workbook = XLSX.read(evt.target.result, { type: 'binary' })
         const sheet = workbook.Sheets[workbook.SheetNames[0]]
         const { rows, columnsFound } = parseRows(XLSX, sheet)
-        if (columnsFound.nameCol === -1 || columnsFound.yearCol === -1) {
+        if (columnsFound.nameCol === -1 || columnsFound.yearCol === -1 || columnsFound.turnoCol === -1) {
           setParseError(
-            'No encontré columnas de "nombre" y "año" en el archivo. Revisá los encabezados de la primera fila.'
+            'No encontré columnas de "nombre", "año" y "turno" en el archivo. Revisá los encabezados de la primera fila.'
           )
           setParsed(null)
           return
@@ -131,6 +155,7 @@ export default function AdminImport() {
         validRows.map((r) => ({
           name: r.name,
           year: r.year,
+          turno: r.turno,
           seriesNumber: r.seriesNumber,
           esColegioVisitante: r.esColegioVisitante,
           tiempoBasico: r.tiempoBasico,
@@ -152,8 +177,9 @@ export default function AdminImport() {
             <div className="tile" style={{ cursor: 'default', flexDirection: 'column', alignItems: 'stretch', gap: 10 }}>
               <div className="tile__label">Subí tu planilla</div>
               <div className="tile__meta">
-                Columnas esperadas: <strong>nombre</strong> y <strong>año</strong> (1 a 6). Opcionales:{' '}
-                <strong>serie</strong>, <strong>visitante</strong> (sí/no) y <strong>tiempo</strong>.
+                Columnas esperadas: <strong>nombre</strong>, <strong>año</strong> (1 a 6) y{' '}
+                <strong>turno</strong> (mañana/tarde). Opcionales: <strong>serie</strong>,{' '}
+                <strong>visitante</strong> (sí/no) y <strong>tiempo</strong>.
               </div>
               <input type="file" accept=".csv,.xlsx,.xls" onChange={handleFile} style={{ marginTop: 8 }} />
               {fileName && <div className="hint-text">Archivo: {fileName}</div>}
@@ -208,7 +234,7 @@ export default function AdminImport() {
                   {r.esColegioVisitante && <span className="visitor-tag">Visitante</span>}
                 </div>
                 <div className="hint-text">
-                  {r.year}° año · Serie {r.seriesNumber}
+                  {r.turno} · {r.year}° año · Serie {r.seriesNumber}
                   {r.tiempoBasico ? ` · Tiempo básico: ${r.tiempoBasico}s` : ''}
                 </div>
               </div>
