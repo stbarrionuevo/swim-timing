@@ -6,21 +6,21 @@ import StatusBadge from '../components/StatusBadge'
 import Icon from '../components/Icon'
 
 export default function SeriesList() {
-  const { year } = useParams()
+  const { turno, year } = useParams()
   const yearNum = Number(year)
   const navigate = useNavigate()
   const { getSeriesListForYear, addSeries, deleteSeries } = useCompetition()
   const [adding, setAdding] = useState(false)
   const [pendingDelete, setPendingDelete] = useState(null)
 
-  const seriesList = getSeriesListForYear(yearNum)
+  const seriesList = getSeriesListForYear(yearNum, turno)
   const nextSeriesNumber =
     seriesList.length === 0 ? 1 : Math.max(...seriesList.map((s) => s.seriesNumber)) + 1
 
   async function handleAdd() {
     setAdding(true)
     try {
-      await addSeries(yearNum, nextSeriesNumber)
+      await addSeries(yearNum, turno,nextSeriesNumber)
     } finally {
       setAdding(false)
     }
@@ -36,7 +36,7 @@ export default function SeriesList() {
 
   return (
     <div className="app-shell">
-      <TopBar title={`${yearNum}° año`} subtitle="Seleccioná la serie" backTo="/" />
+      <TopBar title={`${yearNum}° año— ${turno === 'mañana' ? 'Mañana' : 'Tarde'}`} subtitle="Seleccioná la serie" backTo="/" />
       <main>
         {seriesList.length === 0 && (
           <div className="empty-state">Todavía no hay series para este año.</div>
@@ -46,7 +46,7 @@ export default function SeriesList() {
           <div key={series.id} style={{ position: 'relative' }}>
             <button
               className="tile"
-              onClick={() => navigate(`/anio/${yearNum}/serie/${series.seriesNumber}`)}
+              onClick={() => navigate(`/turno/${turno}/anio/${yearNum}/serie/${series.seriesNumber}`)}
             >
               <div>
                 <div className="tile__label">Serie {series.seriesNumber}</div>

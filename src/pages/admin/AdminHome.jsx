@@ -5,10 +5,16 @@ import TopBar from '../../components/TopBar'
 import BottomNav from '../../components/BottomNav'
 import Icon from '../../components/Icon'
 
+const TURNO_TABS = [
+  { key: 'mañana', label: 'Mañana' },
+  { key: 'tarde', label: 'Tarde' },
+]
+
 export default function AdminHome() {
   const { competition, years, getSeriesListForYear, updateCompetition } = useCompetition()
   const navigate = useNavigate()
   const [editing, setEditing] = useState(false)
+  const [turno, setTurno] = useState('mañana')
   const [form, setForm] = useState({
     name: competition?.name || '',
     event: competition?.event || '',
@@ -99,11 +105,22 @@ export default function AdminHome() {
         </div>
 
         <div className="section-label">Alumnos por año</div>
+        <div className="tabs">
+          {TURNO_TABS.map((t) => (
+            <button
+              key={t.key}
+              className={`tabs__btn ${turno === t.key ? 'is-active' : ''}`}
+              onClick={() => setTurno(t.key)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
         {years.map((year) => {
-          const seriesList = getSeriesListForYear(year)
+          const seriesList = getSeriesListForYear(year, turno)
           const totalParticipants = seriesList.reduce((sum, s) => sum + s.participantCount, 0)
           return (
-            <button key={year} className="tile" onClick={() => navigate(`/admin/anio/${year}`)}>
+            <button key={year} className="tile" onClick={() => navigate(`/admin/turno/${turno}/anio/${year}`)}>
               <div>
                 <div className="tile__label">{year}° año</div>
                 <div className="tile__meta">

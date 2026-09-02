@@ -5,11 +5,11 @@ import TopBar from '../../components/TopBar'
 import Icon from '../../components/Icon'
 
 export default function AdminYear() {
-  const { year } = useParams()
+  const { turno, year } = useParams()
   const yearNum = Number(year)
   const { getSeriesListForYear, getParticipantsForSeries, addSeries, deleteSeries } = useCompetition()
 
-  const seriesList = getSeriesListForYear(yearNum)
+  const seriesList = getSeriesListForYear(yearNum, turno)
   const nextSeriesNumber =
     seriesList.length === 0 ? 1 : Math.max(...seriesList.map((s) => s.seriesNumber)) + 1
   const [addingSeries, setAddingSeries] = useState(false)
@@ -17,7 +17,7 @@ export default function AdminYear() {
   async function handleAddSeries() {
     setAddingSeries(true)
     try {
-      await addSeries(yearNum, nextSeriesNumber)
+      await addSeries(yearNum, turno, nextSeriesNumber)
     } finally {
       setAddingSeries(false)
     }
@@ -25,7 +25,12 @@ export default function AdminYear() {
 
   return (
     <div className="app-shell">
-      <TopBar icon="gear" title={`${yearNum}° año`} subtitle="Administrar series y alumnos" backTo="/admin" />
+      <TopBar
+        icon="gear"
+        title={`${yearNum}° año — ${turno === 'mañana' ? 'Mañana' : 'Tarde'}`}
+        subtitle="Administrar series y alumnos"
+        backTo="/admin"
+      />
       <main>
         {seriesList.length === 0 && (
           <div className="empty-state">Todavía no hay series para este año.</div>
@@ -35,8 +40,9 @@ export default function AdminYear() {
           <SeriesEditor
             key={series.id}
             series={series}
-            participants={getParticipantsForSeries(yearNum, series.seriesNumber)}
+            participants={getParticipantsForSeries(yearNum, turno, series.seriesNumber)}
             year={yearNum}
+            turno={turno}
             onDeleteSeries={() => deleteSeries(series.id)}
           />
         ))}
@@ -50,7 +56,7 @@ export default function AdminYear() {
   )
 }
 
-function SeriesEditor({ series, participants, year, onDeleteSeries }) {
+function SeriesEditor({ series, participants, year, turno, onDeleteSeries }) {
   const { createParticipant, updateParticipant, deleteParticipant } = useCompetition()
   const [newName, setNewName] = useState('')
   const [newVisitor, setNewVisitor] = useState(false)
@@ -62,7 +68,13 @@ function SeriesEditor({ series, participants, year, onDeleteSeries }) {
     if (!name) return
     setAdding(true)
     try {
-      await createParticipant({ year, seriesNumber: series.seriesNumber, name, esColegioVisitante: newVisitor })
+      await createParticipant({
+        year,
+        turno,
+        seriesNumber: series.seriesNumber,
+        name,
+        esColegioVisitante: newVisitor,
+      })
       setNewName('')
       setNewVisitor(false)
     } finally {

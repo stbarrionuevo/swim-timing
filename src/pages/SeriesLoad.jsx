@@ -4,13 +4,13 @@ import TopBar from '../components/TopBar'
 import ParticipantRow from '../components/ParticipantRow'
 
 export default function SeriesLoad() {
-  const { year, serie } = useParams()
+  const { turno,year, serie } = useParams()
   const yearNum = Number(year)
   const serieNum = Number(serie)
   const navigate = useNavigate()
   const { getParticipantsForSeries } = useCompetition()
 
-  const participants = getParticipantsForSeries(yearNum, serieNum)
+  const participants = getParticipantsForSeries(yearNum, turno,serieNum)
   const loadedCount = participants.filter(
     (p) => p.participa && p.result.time !== null
   ).length
@@ -19,9 +19,9 @@ export default function SeriesLoad() {
   return (
     <div className="app-shell">
       <TopBar
-        title={`${yearNum}° año — Serie ${serieNum}`}
-        subtitle={`${loadedCount}/${activeCount} tiempos cargados`}
-        backTo={`/anio/${yearNum}`}
+      title={`${yearNum}° año — Serie ${serieNum} (${turno === 'mañana' ? 'Mañana' : 'Tarde'})`}
+      subtitle={`${loadedCount}/${activeCount} tiempos cargados`}
+      backTo={`/turno/${turno}/anio/${yearNum}`}
       />
       <main>
         {participants.length === 0 ? (
@@ -33,7 +33,7 @@ export default function SeriesLoad() {
         )}
 
         <div style={{ height: 8 }} />
-        <button className="btn btn--primary" onClick={() => navigate(`/anio/${yearNum}`)}>
+        <button className="btn btn--primary" onClick={() => navigate(`//turno/${turno}/anio/${yearNum}`)}>
           Volver a series
         </button>
       </main>

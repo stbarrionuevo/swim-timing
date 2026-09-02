@@ -18,8 +18,8 @@ export default function App() {
       <HashRouter>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/anio/:year" element={<SeriesList />} />
-          <Route path="/anio/:year/serie/:serie" element={<SeriesLoad />} />
+          <Route path="/turno/:turno/anio/:year" element={<SeriesList />} />
+          <Route path="/turno/:turno/anio/:year/serie/:serie" element={<SeriesLoad />} />
           <Route path="/resultados" element={<Results />} />
           <Route path="/publico" element={<Public />} />
           <Route path="/admin" element={<AdminHome />} />
