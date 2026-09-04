@@ -18,12 +18,12 @@ export default function App() {
       <HashRouter>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/turno/:turno/anio/:year" element={<SeriesList />} />
-          <Route path="/turno/:turno/anio/:year/serie/:serie" element={<SeriesLoad />} />
+          <Route path="/turno/:turno/bloque/:bloque" element={<SeriesList />} />
+          <Route path="/turno/:turno/bloque/:bloque/serie/:serieId" element={<SeriesLoad />} />
           <Route path="/resultados" element={<Results />} />
           <Route path="/publico" element={<Public />} />
           <Route path="/admin" element={<AdminHome />} />
-          <Route path="/admin/anio/:year" element={<AdminYear />} />
+          <Route path="/admin/turno/:turno/bloque/:bloque" element={<AdminYear />} />
           <Route path="/admin/importar" element={<AdminImport />} />
           <Route path="/admin/umbrales" element={<AdminUmbrales />} />
           <Route path="/admin/finales" element={<AdminFinales />} />

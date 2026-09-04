@@ -10,8 +10,15 @@ const TURNO_TABS = [
   { key: 'tarde', label: 'Tarde' },
 ]
 
+
+const BLOQUE_INFO = {
+  unico: { label: 'Series de la mañana', meta: '3° a 6° juntos' },
+  '3_4': { label: '3° y 4° — primer turno tarde', meta: 'Bloque 1' },
+  '5_6': { label: '5° y 6° — segundo turno tarde', meta: 'Bloque 2' },
+}
+
 export default function Home() {
-  const { competition, years, status, error, reload } = useCompetition()
+  const { competition, status, error, reload, bloquesPorTurno } = useCompetition()
   const navigate = useNavigate()
   const [turno, setTurno] = useState('mañana')
 
@@ -44,13 +51,7 @@ export default function Home() {
     )
   }
 
-  const bloques =
-    turno === 'tarde'
-      ? [
-          { label: '3ro y 4to — primer turno tarde', years: years.filter((y) => y <= 4) },
-          { label: '5to y 6to — segundo turno tarde', years: years.filter((y) => y > 4) },
-        ]
-      : [{ label: 'Seleccioná el año', years }]
+  const bloques = bloquesPorTurno[turno]
 
   return (
     <div className="app-shell">
@@ -82,23 +83,23 @@ export default function Home() {
           ))}
         </div>
 
-        {bloques.map((bloque, i) => (
-          <div key={i}>
-            <div className="section-label">{bloque.label}</div>
-            <div className="year-grid">
-              {bloque.years.map((year) => (
-                <button
-                  key={year}
-                  className="year-tile"
-                  onClick={() => navigate(`/turno/${turno}/anio/${year}`)}
-                >
-                  <div className="year-tile__number">{year}°</div>
-                  <div className="year-tile__label">Año</div>
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
+        <div className="section-label">Seleccioná dónde cargar tiempos</div>
+        {bloques.map((bloqueKey) => {
+          const info = BLOQUE_INFO[bloqueKey]
+          return (
+            <button
+              key={bloqueKey}
+              className="tile"
+              onClick={() => navigate(`/turno/${turno}/bloque/${bloqueKey}`)}
+            >
+              <div>
+                <div className="tile__label">{info.label}</div>
+                <div className="tile__meta">{info.meta}</div>
+              </div>
+              <span className="tile__chevron"><Icon name="chevron-right" /></span>
+            </button>
+          )
+        })}
       </main>
       <BottomNav />
     </div>

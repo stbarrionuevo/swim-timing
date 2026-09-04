@@ -4,20 +4,33 @@ import { useCompetition } from '../../context/CompetitionContext'
 import TopBar from '../../components/TopBar'
 import Icon from '../../components/Icon'
 
-export default function AdminYear() {
-  const { turno, year } = useParams()
-  const yearNum = Number(year)
-  const { getSeriesListForYear, getParticipantsForSeries, addSeries, deleteSeries } = useCompetition()
+const BLOQUE_TITLE = {
+  unico: 'Mañana — 3° a 6°',
+  '3_4': 'Tarde — 3° y 4°',
+  '5_6': 'Tarde — 5° y 6°',
+}
 
-  const seriesList = getSeriesListForYear(yearNum, turno)
+
+const YEARS_FOR_BLOQUE = {
+  unico: [3, 4, 5, 6],
+  '3_4': [3, 4],
+  '5_6': [5, 6],
+}
+
+export default function AdminYear() {
+  const { turno, bloque } = useParams()
+  const { getSeriesListForBloque, getParticipantsForSeriesId, addSeries, deleteSeries } = useCompetition()
+
+  const seriesList = getSeriesListForBloque(turno, bloque)
   const nextSeriesNumber =
     seriesList.length === 0 ? 1 : Math.max(...seriesList.map((s) => s.seriesNumber)) + 1
   const [addingSeries, setAddingSeries] = useState(false)
+  const years = YEARS_FOR_BLOQUE[bloque] || []
 
   async function handleAddSeries() {
     setAddingSeries(true)
     try {
-      await addSeries(yearNum, turno, nextSeriesNumber)
+      await addSeries(turno, bloque, nextSeriesNumber)
     } finally {
       setAddingSeries(false)
     }
@@ -27,22 +40,22 @@ export default function AdminYear() {
     <div className="app-shell">
       <TopBar
         icon="gear"
-        title={`${yearNum}° año — ${turno === 'mañana' ? 'Mañana' : 'Tarde'}`}
+        title={BLOQUE_TITLE[bloque] || bloque}
         subtitle="Administrar series y alumnos"
         backTo="/admin"
       />
       <main>
         {seriesList.length === 0 && (
-          <div className="empty-state">Todavía no hay series para este año.</div>
+          <div className="empty-state">Todavía no hay series para este bloque.</div>
         )}
 
         {seriesList.map((series) => (
           <SeriesEditor
             key={series.id}
             series={series}
-            participants={getParticipantsForSeries(yearNum, turno, series.seriesNumber)}
-            year={yearNum}
+            participants={getParticipantsForSeriesId(series.id)}
             turno={turno}
+            years={years}
             onDeleteSeries={() => deleteSeries(series.id)}
           />
         ))}
@@ -56,9 +69,10 @@ export default function AdminYear() {
   )
 }
 
-function SeriesEditor({ series, participants, year, turno, onDeleteSeries }) {
+function SeriesEditor({ series, participants, turno, years, onDeleteSeries }) {
   const { createParticipant, updateParticipant, deleteParticipant } = useCompetition()
   const [newName, setNewName] = useState('')
+  const [newYear, setNewYear] = useState(years[0])
   const [newVisitor, setNewVisitor] = useState(false)
   const [adding, setAdding] = useState(false)
 
@@ -69,7 +83,7 @@ function SeriesEditor({ series, participants, year, turno, onDeleteSeries }) {
     setAdding(true)
     try {
       await createParticipant({
-        year,
+        year: newYear,
         turno,
         seriesNumber: series.seriesNumber,
         name,
@@ -85,7 +99,14 @@ function SeriesEditor({ series, participants, year, turno, onDeleteSeries }) {
   return (
     <div className="tile" style={{ cursor: 'default', flexDirection: 'column', alignItems: 'stretch', gap: 10 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div className="tile__label">Serie {series.seriesNumber}</div>
+        <div className="tile__label">
+          Serie {series.seriesNumber}
+          {series.color && (
+            <span className={`color-badge color-badge--${series.color.replace('_', '-')}`} style={{ marginLeft: 8 }}>
+              {series.color}
+            </span>
+          )}
+        </div>
         {participants.length === 0 && (
           <button
             onClick={onDeleteSeries}
@@ -100,6 +121,7 @@ function SeriesEditor({ series, participants, year, turno, onDeleteSeries }) {
         <ParticipantEditor
           key={p.id}
           participant={p}
+          years={years}
           onUpdate={(patch) => updateParticipant(p.id, patch)}
           onDelete={() => deleteParticipant(p.id)}
         />
@@ -115,6 +137,19 @@ function SeriesEditor({ series, participants, year, turno, onDeleteSeries }) {
           placeholder="Nombre del alumno"
           style={{ flex: 1, minWidth: 140, padding: '10px 12px', borderRadius: 8, border: '1.5px solid var(--line)', fontSize: 14 }}
         />
+        {years.length > 1 && (
+          <select
+            value={newYear}
+            onChange={(e) => setNewYear(Number(e.target.value))}
+            style={{ padding: '10px 8px', borderRadius: 8, border: '1.5px solid var(--line)', fontSize: 14 }}
+          >
+            {years.map((y) => (
+              <option key={y} value={y}>
+                {y}°
+              </option>
+            ))}
+          </select>
+        )}
         <label className="checkbox-pill">
           <input type="checkbox" checked={newVisitor} onChange={(e) => setNewVisitor(e.target.checked)} />
           Visitante
@@ -127,7 +162,7 @@ function SeriesEditor({ series, participants, year, turno, onDeleteSeries }) {
   )
 }
 
-function ParticipantEditor({ participant, onUpdate, onDelete }) {
+function ParticipantEditor({ participant, years, onUpdate, onDelete }) {
   const [name, setName] = useState(participant.name)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
 
@@ -145,6 +180,19 @@ function ParticipantEditor({ participant, onUpdate, onDelete }) {
         onBlur={commitName}
         style={{ flex: 1, minWidth: 120, padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--line)', fontSize: 14 }}
       />
+      {years.length > 1 && (
+        <select
+          value={participant.year ?? years[0]}
+          onChange={(e) => onUpdate({ year: Number(e.target.value) })}
+          style={{ padding: '8px 6px', borderRadius: 8, border: '1.5px solid var(--line)', fontSize: 13 }}
+        >
+          {years.map((y) => (
+            <option key={y} value={y}>
+              {y}°
+            </option>
+          ))}
+        </select>
+      )}
       <label className="checkbox-pill">
         <input
           type="checkbox"

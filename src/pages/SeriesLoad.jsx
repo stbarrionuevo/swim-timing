@@ -3,14 +3,20 @@ import { useCompetition } from '../context/CompetitionContext'
 import TopBar from '../components/TopBar'
 import ParticipantRow from '../components/ParticipantRow'
 
-export default function SeriesLoad() {
-  const { turno,year, serie } = useParams()
-  const yearNum = Number(year)
-  const serieNum = Number(serie)
-  const navigate = useNavigate()
-  const { getParticipantsForSeries } = useCompetition()
+const BLOQUE_LABEL = {
+  unico: 'Mañana',
+  '3_4': 'Tarde — 3° y 4°',
+  '5_6': 'Tarde — 5° y 6°',
+}
 
-  const participants = getParticipantsForSeries(yearNum, turno,serieNum)
+export default function SeriesLoad() {
+  const { turno, bloque, serieId } = useParams()
+  const navigate = useNavigate()
+  const { getParticipantsForSeriesId } = useCompetition()
+
+  const participants = getParticipantsForSeriesId(serieId)
+  
+  const seriesNumber = participants[0]?.series
   const loadedCount = participants.filter(
     (p) => p.participa && p.result.time !== null
   ).length
@@ -19,9 +25,9 @@ export default function SeriesLoad() {
   return (
     <div className="app-shell">
       <TopBar
-      title={`${yearNum}° año — Serie ${serieNum} (${turno === 'mañana' ? 'Mañana' : 'Tarde'})`}
-      subtitle={`${loadedCount}/${activeCount} tiempos cargados`}
-      backTo={`/turno/${turno}/anio/${yearNum}`}
+        title={seriesNumber ? `Serie ${seriesNumber} — ${BLOQUE_LABEL[bloque] || bloque}` : BLOQUE_LABEL[bloque] || bloque}
+        subtitle={`${loadedCount}/${activeCount} tiempos cargados`}
+        backTo={`/turno/${turno}/bloque/${bloque}`}
       />
       <main>
         {participants.length === 0 ? (
@@ -33,7 +39,7 @@ export default function SeriesLoad() {
         )}
 
         <div style={{ height: 8 }} />
-        <button className="btn btn--primary" onClick={() => navigate(`//turno/${turno}/anio/${yearNum}`)}>
+        <button className="btn btn--primary" onClick={() => navigate(`/turno/${turno}/bloque/${bloque}`)}>
           Volver a series
         </button>
       </main>

@@ -2,10 +2,20 @@ import { supabase } from '../lib/supabaseClient';
 
 const HEAT_SIZE = 5;
 const TURNOS = ['mañana', 'tarde'];
-// Del más lento al más rápido: media_pileta nada medio largo, es el grupo
-// más lento de todos, por eso corre primero (mismo criterio que antes con
-// rojo→amarillo→verde).
+
 const COLOR_ORDER = ['media_pileta', 'rojo', 'amarillo', 'verde'];
+
+
+const BLOQUES_POR_TURNO = {
+  mañana: ['unico'],
+  tarde: ['3_4', '5_6'],
+};
+
+
+function bloqueForYear(turno, year) {
+  if (turno === 'mañana') return 'unico';
+  return year <= 4 ? '3_4' : '5_6';
+}
 
 export async function getUmbrales() {
   const { data, error } = await supabase
@@ -31,30 +41,22 @@ export async function upsertUmbral(turno, corteAmarilloVerde, corteRojoAmarillo,
   if (error) throw error;
 }
 
-// 4 categorías por turno (ya no por año): verde (rápido) > amarillo > rojo
-// > media_pileta (el grupo más lento, nada medio largo en vez de 25m
-// completos). Sin tiempo básico cargado sigue cayendo en rojo por
-// defecto, no en media_pileta — esa categoría es sobre un tiempo real
-// medido, no sobre la ausencia de dato.
 export function assignColor(tiempoBasico, umbral) {
   if (tiempoBasico == null) return 'rojo';
-  if (!umbral) return 'rojo'; // turno sin umbrales configurados todavía
+  if (!umbral) return 'rojo';
   if (tiempoBasico > umbral.corte_media_pileta) return 'media_pileta';
   if (tiempoBasico > umbral.corte_rojo_amarillo) return 'rojo';
   if (tiempoBasico > umbral.corte_amarillo_verde) return 'amarillo';
   return 'verde';
 }
 
-// Arma los heats preliminares leyendo directo de la base. El turno de
-// cada alumno viene de su serie actual (cargada en el import). Sin
-// tiempo básico cargado, cae en rojo por defecto. Los "no participa"
-// quedan afuera, sin rellenar el heat.
+
 export async function generatePreliminarySeries(competitionId) {
   const [{ data: participantRows, error: errP }, umbrales] = await Promise.all([
     supabase
       .from('participants')
       .select(
-        'id, series_id, name, tiempo_basico, es_colegio_visitante, participa, series:series_id(year_number, turno)'
+        'id, series_id, name, year_number, tiempo_basico, es_colegio_visitante, participa, series:series_id(turno)'
       )
       .eq('competition_id', competitionId),
     getUmbrales(),
@@ -63,16 +65,17 @@ export async function generatePreliminarySeries(competitionId) {
 
   const umbralPorTurno = Object.fromEntries(umbrales.map((u) => [u.turno, u]));
 
-  // porTurnoAnio['mañana'][3] = [ ...participantes ]
-  const porTurnoAnio = {};
+
+  const porTurnoBloque = {};
   const seriesOrigenIds = new Set();
   for (const p of participantRows) {
     const turno = p.series?.turno;
-    const year = p.series?.year_number;
-    if (!turno || !year || !p.participa) continue;
-    porTurnoAnio[turno] ??= {};
-    porTurnoAnio[turno][year] ??= [];
-    porTurnoAnio[turno][year].push(p);
+    if (!turno || !p.participa) continue;
+    if (p.year_number == null) continue;
+    const bloque = bloqueForYear(turno, p.year_number);
+    porTurnoBloque[turno] ??= {};
+    porTurnoBloque[turno][bloque] ??= [];
+    porTurnoBloque[turno][bloque].push(p);
     seriesOrigenIds.add(p.series_id);
   }
 
@@ -81,8 +84,8 @@ export async function generatePreliminarySeries(competitionId) {
   for (const turno of TURNOS) {
     const umbral = umbralPorTurno[turno];
 
-    for (let year = 1; year <= 6; year++) {
-      const participantes = porTurnoAnio[turno]?.[year] || [];
+    for (const bloque of BLOQUES_POR_TURNO[turno]) {
+      const participantes = porTurnoBloque[turno]?.[bloque] || [];
 
       const grupos = { media_pileta: [], rojo: [], amarillo: [], verde: [] };
       for (const p of participantes) {
@@ -90,12 +93,9 @@ export async function generatePreliminarySeries(competitionId) {
         grupos[assignColor(tiempo, umbral)].push({ ...p, tiempo_basico: tiempo });
       }
 
-      let seriesNumberEnAnio = 1;
+      let seriesNumberEnBloque = 1;
 
       for (const color of COLOR_ORDER) {
-        // Orden: más lento (tiempo mayor) primero. Sin tiempo_basico van
-        // al final del grupo (aplica solo dentro de rojo, que es donde
-        // caen por defecto).
         const ordenados = [...grupos[color]].sort((a, b) => {
           if (a.tiempo_basico == null && b.tiempo_basico == null) return 0;
           if (a.tiempo_basico == null) return 1;
@@ -110,9 +110,10 @@ export async function generatePreliminarySeries(competitionId) {
             .from('series')
             .insert({
               competition_id: competitionId,
-              year_number: year,
+              year_number: null,
               turno,
-              series_number: seriesNumberEnAnio++,
+              bloque,
+              series_number: seriesNumberEnBloque++,
               tipo: 'preliminar',
               color,
             })
@@ -134,8 +135,6 @@ export async function generatePreliminarySeries(competitionId) {
     }
   }
 
-  // Limpieza: las series de origen que quedaron vacías se borran (mismo
-  // criterio que antes — evita el "Serie 1" fantasma).
   for (const seriesId of seriesOrigenIds) {
     if (!seriesId) continue;
     const { count, error: errCount } = await supabase
@@ -152,37 +151,65 @@ export async function generatePreliminarySeries(competitionId) {
 }
 
 export async function generateFinalSeries(competitionId) {
+  console.log('=== generateFinalSeries INICIADA ===', competitionId);
+
   const finalesCreadas = [];
 
-  // Una sola consulta para todo (antes se repetía 18 veces, una por cada
-  // combinación año×color — con turno hubiera sido 48. Se saca del loop).
   const { data: preliminares, error: errPrelim } = await supabase
     .from('participants')
     .select(
-      `id, name, es_colegio_visitante, media_pileta, participa,
-       series:series_id(id, year_number, turno, tipo, color),
-       results(time)`
+      `id, name, year_number, es_colegio_visitante, media_pileta, participa,
+       series:series_id(id, turno, bloque, tipo, color)`
     )
     .eq('competition_id', competitionId);
-  if (errPrelim) throw errPrelim;
+  if (errPrelim) {
+    console.error('Error trayendo preliminares:', errPrelim);
+    throw errPrelim;
+  }
+
+  const participantIds = preliminares.map((p) => p.id);
+  let resultsByParticipantId = new Map();
+  if (participantIds.length > 0) {
+    const { data: results, error: errResults } = await supabase
+      .from('results')
+      .select('participant_id, time')
+      .in('participant_id', participantIds);
+    if (errResults) {
+      console.error('Error trayendo resultados:', errResults);
+      throw errResults;
+    }
+    resultsByParticipantId = new Map(results.map((r) => [r.participant_id, r]));
+  }
+
+  console.log('Preliminares traídos:', preliminares.length);
+  console.log('Ejemplo de participante:', preliminares[0]);
+  console.log('Resultados encontrados:', resultsByParticipantId.size);
 
   for (const turno of TURNOS) {
-    for (let year = 1; year <= 6; year++) {
-      let seriesNumberEnAnio = 1;
+    for (const bloque of BLOQUES_POR_TURNO[turno]) {
+      let seriesNumberEnBloque = 1;
 
       for (const color of COLOR_ORDER) {
         const candidatos = preliminares
-          .filter(
-            (p) =>
+          .filter((p) => {
+            const result = resultsByParticipantId.get(p.id);
+            return (
               p.series?.tipo === 'preliminar' &&
               p.series?.turno === turno &&
-              p.series?.year_number === year &&
+              p.series?.bloque === bloque &&
               p.series?.color === color &&
               p.participa &&
-              p.results?.[0]?.time != null
-          )
-          .sort((a, b) => a.results[0].time - b.results[0].time) // más rápido primero
+              result?.time != null
+            );
+          })
+          .sort((a, b) => {
+            const timeA = resultsByParticipantId.get(a.id)?.time || Infinity;
+            const timeB = resultsByParticipantId.get(b.id)?.time || Infinity;
+            return timeA - timeB;
+          })
           .slice(0, 5);
+
+        console.log(`${turno} / ${bloque} / ${color}: ${candidatos.length} candidatos`);
 
         if (candidatos.length === 0) continue;
 
@@ -190,8 +217,8 @@ export async function generateFinalSeries(competitionId) {
           .from('series')
           .select('id, participants(id, results(id))')
           .eq('competition_id', competitionId)
-          .eq('year_number', year)
           .eq('turno', turno)
+          .eq('bloque', bloque)
           .eq('tipo', 'final')
           .eq('color', color)
           .maybeSingle();
@@ -202,8 +229,8 @@ export async function generateFinalSeries(competitionId) {
           );
           if (tieneResultados) {
             finalesCreadas.push({
-              year,
               turno,
+              bloque,
               color,
               omitido: true,
               motivo: 'Ya tiene resultados cargados, no se sobrescribe',
@@ -219,27 +246,35 @@ export async function generateFinalSeries(competitionId) {
           .from('series')
           .insert({
             competition_id: competitionId,
-            year_number: year,
+            year_number: null,
             turno,
-            series_number: seriesNumberEnAnio++,
+            bloque,
+            series_number: seriesNumberEnBloque++,
             tipo: 'final',
             color,
           })
           .select()
           .single();
-        if (errFinal) throw errFinal;
+        if (errFinal) {
+          console.error('Error creando final:', errFinal);
+          throw errFinal;
+        }
 
         for (const c of candidatos) {
           const { error } = await supabase.from('participants').insert({
             competition_id: competitionId,
             series_id: nuevaFinal.id,
             name: c.name,
+            year_number: c.year_number,
             es_colegio_visitante: c.es_colegio_visitante,
             media_pileta: c.media_pileta,
             participa: true,
             participante_origen_id: c.id,
           });
-          if (error) throw error;
+          if (error) {
+            console.error('Error insertando participante en final:', error);
+            throw error;
+          }
         }
 
         finalesCreadas.push({ ...nuevaFinal, cantidad: candidatos.length });
@@ -247,5 +282,6 @@ export async function generateFinalSeries(competitionId) {
     }
   }
 
+  console.log('=== generateFinalSeries TERMINADA ===', finalesCreadas.length, 'finales');
   return finalesCreadas;
 }

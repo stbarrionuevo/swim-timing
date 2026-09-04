@@ -7,6 +7,12 @@ const TURNOS = [
   { key: 'tarde', label: 'Tarde (3ro a 6to, dos bloques horarios)' },
 ]
 
+const BLOQUE_LABEL = {
+  unico: 'Mañana',
+  '3_4': '3° y 4°',
+  '5_6': '5° y 6°',
+}
+
 export default function AdminUmbrales() {
   const navigate = useNavigate()
   const { getUmbrales, upsertUmbral, generatePreliminarySeries } = useCompetition()
@@ -98,23 +104,25 @@ export default function AdminUmbrales() {
     }
   }
 
+  // Agrupa por turno+bloque (ya no por año — una serie preliminar ahora
+  // mezcla los años de ese bloque).
   const resumen = useMemo(() => {
     if (!resultadoPreliminares) return []
-    const porTurnoAnio = {}
+    const porTurnoBloque = {}
     for (const s of resultadoPreliminares) {
-      const key = `${s.turno}-${s.year_number}`
-      porTurnoAnio[key] ??= {
+      const key = `${s.turno}-${s.bloque}`
+      porTurnoBloque[key] ??= {
         turno: s.turno,
-        year: s.year_number,
+        bloque: s.bloque,
         media_pileta: 0,
         rojo: 0,
         amarillo: 0,
         verde: 0,
       }
-      porTurnoAnio[key][s.color]++
+      porTurnoBloque[key][s.color]++
     }
-    return Object.values(porTurnoAnio).sort((a, b) =>
-      a.turno === b.turno ? a.year - b.year : a.turno === 'mañana' ? -1 : 1
+    return Object.values(porTurnoBloque).sort((a, b) =>
+      a.turno === b.turno ? a.bloque.localeCompare(b.bloque) : a.turno === 'mañana' ? -1 : 1
     )
   }, [resultadoPreliminares])
 
@@ -198,9 +206,9 @@ export default function AdminUmbrales() {
         <div className="form-card">
           <p className="hint-text" style={{ marginBottom: 'var(--space-3)' }}>
             Agrupa a los alumnos que ya tienen tiempo básico cargado (columna "tiempo" del import) en
-            heats de 5 por turno + año + color, del más lento al más rápido. Los que no tienen tiempo
-            básico entran en rojo. Corré esto una sola vez, después de cargar los umbrales de los 2
-            turnos.
+            heats de 5 por turno + bloque + color, del más lento al más rápido — mezclando los años
+            de ese bloque. Los que no tienen tiempo básico entran en rojo. Corré esto una sola vez,
+            después de cargar los umbrales de los 2 turnos.
           </p>
           <button className="btn btn--accent" disabled={generando} onClick={handleGenerarPreliminares}>
             {generando ? 'Generando...' : 'Generar series preliminares'}
@@ -218,10 +226,10 @@ export default function AdminUmbrales() {
                 {resultadoPreliminares.length} series creadas.
               </p>
               {resumen.map((r) => (
-                <div className="preview-row" key={`${r.turno}-${r.year}`}>
+                <div className="preview-row" key={`${r.turno}-${r.bloque}`}>
                   <div className="preview-row__info">
                     <div className="preview-row__name">
-                      {r.turno} · {r.year}° año
+                      {r.turno} · {BLOQUE_LABEL[r.bloque] || r.bloque}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 6 }}>

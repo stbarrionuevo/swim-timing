@@ -49,8 +49,10 @@ export async function fetchCompetitionData() {
       id: p.id,
       competitionId: p.competition_id,
       seriesId: p.series_id,
-      year: seriesRow?.year_number,
+ 
+      year: p.year_number,
       turno: seriesRow?.turno,
+      bloque: seriesRow?.bloque,
       series: seriesRow?.series_number,
       name: p.name,
       esColegioVisitante: p.es_colegio_visitante,
@@ -65,8 +67,8 @@ export async function fetchCompetitionData() {
 
   const series = seriesRows.map((s) => ({
     id: s.id,
-    year: s.year_number,
     turno: s.turno,
+    bloque: s.bloque,
     seriesNumber: s.series_number,
     tipo: s.tipo,
     color: s.color,
@@ -168,20 +170,21 @@ export async function setParticipantVisitor(participantId, isVisitor) {
 }
 
 
-export async function addSeries(competitionId, year, turno, seriesNumber) {
+
+export async function addSeries(competitionId, turno, bloque, seriesNumber) {
   const { data, error } = await supabase
     .from('series')
     .insert({
       competition_id: competitionId,
-      year_number: year,
       turno,
+      bloque,
       series_number: seriesNumber,
     })
     .select()
     .single()
 
   if (error) throw error
-  return { id: data.id, year: data.year_number, turno: data.turno, seriesNumber: data.series_number }
+  return { id: data.id, turno: data.turno, bloque: data.bloque, seriesNumber: data.series_number }
 }
 
 
@@ -193,12 +196,14 @@ export async function deleteSeries(seriesId) {
 
 
 
-export async function createParticipant({ competitionId, seriesId, name, esColegioVisitante }) {
+
+export async function createParticipant({ competitionId, seriesId, yearNumber, name, esColegioVisitante }) {
   const { data, error } = await supabase
     .from('participants')
     .insert({
       competition_id: competitionId,
       series_id: seriesId,
+      year_number: yearNumber ?? null,
       name,
       es_colegio_visitante: !!esColegioVisitante,
     })
@@ -216,6 +221,7 @@ export async function bulkCreateParticipants(rows) {
     const chunk = rows.slice(i, i + chunkSize).map((r) => ({
       competition_id: r.competitionId,
       series_id: r.seriesId,
+      year_number: r.year ?? null,
       name: r.name,
       es_colegio_visitante: !!r.esColegioVisitante,
       ...(r.tiempoBasico != null ? { tiempo_basico: r.tiempoBasico } : {}),
@@ -233,6 +239,7 @@ export async function updateParticipant(participantId, patch) {
   if (patch.esColegioVisitante !== undefined) dbPatch.es_colegio_visitante = patch.esColegioVisitante
   if (patch.mediaPileta !== undefined) dbPatch.media_pileta = patch.mediaPileta
   if (patch.seriesId !== undefined) dbPatch.series_id = patch.seriesId
+  if (patch.yearNumber !== undefined) dbPatch.year_number = patch.yearNumber
 
   const { data, error } = await supabase
     .from('participants')

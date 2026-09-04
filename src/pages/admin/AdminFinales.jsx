@@ -2,6 +2,12 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCompetition } from '../../context/CompetitionContext'
 
+const BLOQUE_LABEL = {
+  unico: 'Mañana',
+  '3_4': '3° y 4°',
+  '5_6': '5° y 6°',
+}
+
 export default function AdminFinales() {
   const navigate = useNavigate()
   const { generateFinalSeries } = useCompetition()
@@ -34,7 +40,7 @@ export default function AdminFinales() {
         </button>
         <div>
           <div className="topbar__title">Series finales</div>
-          <div className="topbar__subtitle">Top 5 por color y año</div>
+          <div className="topbar__subtitle">Top 5 por turno, bloque y color</div>
         </div>
       </header>
 
@@ -42,9 +48,9 @@ export default function AdminFinales() {
         <div className="form-card">
           <p className="hint-text" style={{ marginBottom: 'var(--space-4)' }}>
             Toma el tiempo real que nadó cada chico en su serie preliminar (no el tiempo básico del
-            Excel) y arma una final por año y color con los 5 más rápidos. Correr esto recién cuando
-            todas las series preliminares tengan resultado cargado — si alguna final ya tiene tiempos
-            cargados, NO se toca.
+            Excel) y arma una final por bloque y color con los 5 más rápidos, mezclando los años de
+            ese bloque. Correr esto recién cuando todas las series preliminares tengan resultado
+            cargado — si alguna final ya tiene tiempos cargados, NO se toca.
           </p>
           <button className="btn btn--accent" disabled={generando} onClick={handleGenerar}>
             {generando ? 'Generando...' : 'Generar series finales'}
@@ -64,10 +70,12 @@ export default function AdminFinales() {
             {nuevas.map((s, i) => (
               <div className="preview-row" key={i}>
                 <div className="preview-row__info">
-                  <div className="preview-row__name">{s.year_number}° año</div>
+                  <div className="preview-row__name">
+                    {s.turno} · {BLOQUE_LABEL[s.bloque] || s.bloque}
+                  </div>
                   <div className="preview-row__meta">{s.cantidad} nadadores</div>
                 </div>
-                <span className={`color-badge color-badge--${s.color}`}>{s.color}</span>
+                <span className={`color-badge color-badge--${s.color.replace('_', '-')}`}>{s.color}</span>
               </div>
             ))}
 
@@ -80,7 +88,7 @@ export default function AdminFinales() {
                   <div className="preview-row" key={i}>
                     <div className="preview-row__info">
                       <div className="preview-row__name">
-                        {s.year}° año — {s.color}
+                        {s.turno} · {BLOQUE_LABEL[s.bloque] || s.bloque} — {s.color}
                       </div>
                       <div className="preview-row__meta">{s.motivo}</div>
                     </div>

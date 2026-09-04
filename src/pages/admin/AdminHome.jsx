@@ -10,8 +10,14 @@ const TURNO_TABS = [
   { key: 'tarde', label: 'Tarde' },
 ]
 
+const BLOQUE_INFO = {
+  unico: { label: 'Mañana — 3° a 6°', meta: '' },
+  '3_4': { label: '3° y 4° — primer turno tarde', meta: 'Bloque 1' },
+  '5_6': { label: '5° y 6° — segundo turno tarde', meta: 'Bloque 2' },
+}
+
 export default function AdminHome() {
-  const { competition, years, getSeriesListForYear, updateCompetition } = useCompetition()
+  const { competition, getSeriesListForBloque, updateCompetition, bloquesPorTurno } = useCompetition()
   const navigate = useNavigate()
   const [editing, setEditing] = useState(false)
   const [turno, setTurno] = useState('mañana')
@@ -36,6 +42,8 @@ export default function AdminHome() {
       setSaving(false)
     }
   }
+
+  const bloques = bloquesPorTurno[turno]
 
   return (
     <div className="app-shell">
@@ -104,7 +112,7 @@ export default function AdminHome() {
           )}
         </div>
 
-        <div className="section-label">Alumnos por año</div>
+        <div className="section-label">Series y alumnos</div>
         <div className="tabs">
           {TURNO_TABS.map((t) => (
             <button
@@ -116,13 +124,18 @@ export default function AdminHome() {
             </button>
           ))}
         </div>
-        {years.map((year) => {
-          const seriesList = getSeriesListForYear(year, turno)
+        {bloques.map((bloqueKey) => {
+          const info = BLOQUE_INFO[bloqueKey]
+          const seriesList = getSeriesListForBloque(turno, bloqueKey)
           const totalParticipants = seriesList.reduce((sum, s) => sum + s.participantCount, 0)
           return (
-            <button key={year} className="tile" onClick={() => navigate(`/admin/turno/${turno}/anio/${year}`)}>
+            <button
+              key={bloqueKey}
+              className="tile"
+              onClick={() => navigate(`/admin/turno/${turno}/bloque/${bloqueKey}`)}
+            >
               <div>
-                <div className="tile__label">{year}° año</div>
+                <div className="tile__label">{info.label}</div>
                 <div className="tile__meta">
                   {totalParticipants} alumno{totalParticipants !== 1 ? 's' : ''} ·{' '}
                   {seriesList.length} serie{seriesList.length !== 1 ? 's' : ''}
