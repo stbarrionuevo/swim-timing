@@ -45,8 +45,6 @@ function parseVisitor(value) {
   return ['si', 'sí', 'true', '1', 'x', 'yes'].includes(v)
 }
 
-// Acepta "mañana"/"tarde" (con o sin tilde, cualquier capitalización).
-// normalizeHeader ya saca tildes, así que "mañana" llega como "manana".
 function parseTurno(value) {
   const v = normalizeHeader(value)
   if (v === 'manana' || v === 'am') return 'mañana'
@@ -67,7 +65,7 @@ function parseRows(XLSX, worksheet) {
   const timeCol = findColumn(headers, HEADER_ALIASES.time)
 
   const rows = raw.slice(1).map((cells, i) => {
-    const name = nameCol !== -1 ? String(cells[nameCol] || '').trim() : ''
+    const name = nameCol !== -1 ? String(cells[nameCol] || '').trim().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' '): ''
     const yearRaw = yearCol !== -1 ? String(cells[yearCol] || '').trim() : ''
     const turnoRaw = turnoCol !== -1 ? cells[turnoCol] : ''
     const seriesRaw = seriesCol !== -1 ? String(cells[seriesCol] || '').trim() : ''
