@@ -194,6 +194,15 @@ export async function deleteSeries(seriesId) {
   return { id: seriesId, deleted: true }
 }
 
+// Usado al fusionar dos series manualmente (AdminYear): si mezclan colores
+// distintos, la serie resultante ya no es "pura" de un color y el badge se
+// limpia (null) para no mostrar una etiqueta que ya no es cierta.
+export async function updateSeriesColor(seriesId, color) {
+  const { error } = await supabase.from('series').update({ color }).eq('id', seriesId)
+  if (error) throw error
+  return { id: seriesId, color }
+}
+
 
 
 

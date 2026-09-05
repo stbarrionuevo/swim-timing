@@ -230,6 +230,11 @@ function reducer(state, action) {
       }
     case 'REMOVE_PARTICIPANT':
       return { ...state, participants: state.participants.filter((p) => p.id !== action.participantId) }
+    case 'UPDATE_SERIES':
+      return {
+        ...state,
+        series: state.series.map((s) => (s.id === action.seriesId ? { ...s, ...action.patch } : s)),
+      }
     case 'UPDATE_COMPETITION':
       return { ...state, competition: { ...state.competition, ...action.patch } }
     default:
@@ -620,6 +625,52 @@ export function CompetitionProvider({ children }) {
     [findOrCreateSeries]
   )
 
+  // Fusión manual de dos series (herramienta de optimización de tiempo:
+  // juntar heats chicos de colores contiguos, ej. rojo de 2 + amarillo de 3,
+  // en vez de cronometrar dos series incompletas por separado). Mueve a
+  // todos los participantes de sourceSeriesId hacia targetSeriesId y borra
+  // la serie de origen. Si ambas series tenían un color distinto, el color
+  // de la serie resultante se limpia (deja de ser "pura" de un color).
+  const mergeSeries = useCallback(
+    async (sourceSeriesId, targetSeriesId) => {
+      if (!sourceSeriesId || !targetSeriesId || sourceSeriesId === targetSeriesId) return
+
+      const source = state.series.find((s) => s.id === sourceSeriesId)
+      const target = state.series.find((s) => s.id === targetSeriesId)
+      if (!source || !target) throw new Error('Serie no encontrada.')
+
+      const toMove = state.participants.filter((p) => p.seriesId === sourceSeriesId)
+      const mediaPiletaTarget = target.color === 'media_pileta'
+
+      for (const p of toMove) {
+        await dataService.updateParticipant(p.id, {
+          seriesId: targetSeriesId,
+          mediaPileta: mediaPiletaTarget,
+        })
+        dispatch({
+          type: 'UPDATE_PARTICIPANT',
+          participantId: p.id,
+          patch: {
+            seriesId: targetSeriesId,
+            turno: target.turno,
+            bloque: target.bloque,
+            series: target.seriesNumber,
+            mediaPileta: mediaPiletaTarget,
+          },
+        })
+      }
+
+      if (source.color && target.color && source.color !== target.color) {
+        await dataService.updateSeriesColor(targetSeriesId, null)
+        dispatch({ type: 'UPDATE_SERIES', seriesId: targetSeriesId, patch: { color: null } })
+      }
+
+      await dataService.deleteSeries(sourceSeriesId)
+      dispatch({ type: 'DELETE_SERIES', seriesId: sourceSeriesId })
+    },
+    [state.series, state.participants]
+  )
+
   const deleteParticipant = useCallback(async (participantId) => {
     await dataService.deleteParticipant(participantId)
     dispatch({ type: 'REMOVE_PARTICIPANT', participantId })
@@ -853,6 +904,7 @@ export function CompetitionProvider({ children }) {
       setVisitor,
       addSeries,
       deleteSeries,
+      mergeSeries,
       resolveConflict,
       getConflict,
       createParticipant,
@@ -884,6 +936,7 @@ export function CompetitionProvider({ children }) {
       setVisitor,
       addSeries,
       deleteSeries,
+      mergeSeries,
       resolveConflict,
       getConflict,
       createParticipant,

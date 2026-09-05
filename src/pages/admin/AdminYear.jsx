@@ -19,7 +19,8 @@ const YEARS_FOR_BLOQUE = {
 
 export default function AdminYear() {
   const { turno, bloque } = useParams()
-  const { getSeriesListForBloque, getParticipantsForSeriesId, addSeries, deleteSeries } = useCompetition()
+  const { getSeriesListForBloque, getParticipantsForSeriesId, addSeries, deleteSeries, mergeSeries } =
+    useCompetition()
 
   const seriesList = getSeriesListForBloque(turno, bloque)
   const nextSeriesNumber =
@@ -56,7 +57,9 @@ export default function AdminYear() {
             participants={getParticipantsForSeriesId(series.id)}
             turno={turno}
             years={years}
+            allSeries={seriesList}
             onDeleteSeries={() => deleteSeries(series.id)}
+            onMerge={mergeSeries}
           />
         ))}
 
@@ -69,12 +72,30 @@ export default function AdminYear() {
   )
 }
 
-function SeriesEditor({ series, participants, turno, years, onDeleteSeries }) {
+function SeriesEditor({ series, participants, turno, years, allSeries, onDeleteSeries, onMerge }) {
   const { createParticipant, updateParticipant, deleteParticipant } = useCompetition()
   const [newName, setNewName] = useState('')
   const [newYear, setNewYear] = useState(years[0])
   const [newVisitor, setNewVisitor] = useState(false)
   const [adding, setAdding] = useState(false)
+  const [mergeTarget, setMergeTarget] = useState('')
+  const [confirmingMerge, setConfirmingMerge] = useState(false)
+  const [merging, setMerging] = useState(false)
+
+  const otherSeries = (allSeries || []).filter((s) => s.id !== series.id)
+  const targetSeries = otherSeries.find((s) => s.id === mergeTarget)
+
+  async function handleMerge() {
+    if (!mergeTarget) return
+    setMerging(true)
+    try {
+      await onMerge(series.id, mergeTarget)
+      setMergeTarget('')
+      setConfirmingMerge(false)
+    } finally {
+      setMerging(false)
+    }
+  }
 
   async function handleAddParticipant(e) {
     e.preventDefault()
@@ -158,6 +179,67 @@ function SeriesEditor({ series, participants, turno, years, onDeleteSeries }) {
           {adding ? 'Agregando…' : '+ Agregar'}
         </button>
       </form>
+
+      {otherSeries.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 6, borderTop: '1px solid var(--line)' }}>
+          <div className="section-label" style={{ margin: 0 }}>Fusionar esta serie con otra</div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <select
+              value={mergeTarget}
+              onChange={(e) => {
+                setMergeTarget(e.target.value)
+                setConfirmingMerge(false)
+              }}
+              style={{ flex: 1, minWidth: 180, padding: '10px 12px', borderRadius: 8, border: '1.5px solid var(--line)', fontSize: 14 }}
+            >
+              <option value="">Elegir serie destino…</option>
+              {otherSeries.map((s) => (
+                <option key={s.id} value={s.id}>
+                  Serie {s.seriesNumber}
+                  {s.color ? ` · ${s.color}` : ''} — {s.participantCount} participante
+                  {s.participantCount !== 1 ? 's' : ''}
+                </option>
+              ))}
+            </select>
+
+            {!confirmingMerge ? (
+              <button
+                className="btn btn--ghost"
+                type="button"
+                disabled={!mergeTarget}
+                onClick={() => setConfirmingMerge(true)}
+                style={{ width: 'auto', padding: '0 14px', minHeight: 40 }}
+              >
+                Fusionar
+              </button>
+            ) : (
+              <span style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 12, color: 'var(--ink-soft)' }}>
+                  Mueve {participants.length} participante{participants.length !== 1 ? 's' : ''} a Serie{' '}
+                  {targetSeries?.seriesNumber} y borra esta serie. ¿Confirmar?
+                </span>
+                <button
+                  className="btn btn--danger"
+                  type="button"
+                  disabled={merging}
+                  onClick={handleMerge}
+                  style={{ width: 'auto', padding: '0 12px', minHeight: 36 }}
+                >
+                  {merging ? '...' : 'Sí'}
+                </button>
+                <button
+                  className="btn btn--ghost"
+                  type="button"
+                  onClick={() => setConfirmingMerge(false)}
+                  style={{ width: 'auto', padding: '0 12px', minHeight: 36 }}
+                >
+                  No
+                </button>
+              </span>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
