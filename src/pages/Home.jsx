@@ -11,20 +11,22 @@ const TURNO_TABS = [
 ]
 
 
-const BLOQUE_INFO = {
-  unico: { label: 'Series de la mañana', meta: '3° a 6° juntos' },
-  '3_4': { label: '3° y 4° — primer turno tarde', meta: 'Bloque 1' },
-  '5_6': { label: '5° y 6° — segundo turno tarde', meta: 'Bloque 2' },
+const BLOQUES_POR_TURNO = {
+  mañana: [{ key: 'unico', label: 'Ver series — 3° a 6°', meta: 'Bloque único · 3° a 6°', hero: true }],
+  tarde: [
+    { key: '3_4', label: '3° Y 4°', meta: 'Primer bloque de tarde' },
+    { key: '5_6', label: '5° Y 6°', meta: 'Segundo bloque de tarde' },
+  ],
 }
 
 export default function Home() {
-  const { competition, status, error, reload, bloquesPorTurno } = useCompetition()
+  const { competition, status, error, reload } = useCompetition()
   const navigate = useNavigate()
   const [turno, setTurno] = useState('mañana')
 
   if (status === 'loading') {
     return (
-      <div className="app-shell">
+      <div className="app-shell home-screen">
         <main>
           <div className="empty-state">Cargando competencia…</div>
         </main>
@@ -34,7 +36,7 @@ export default function Home() {
 
   if (status === 'error') {
     return (
-      <div className="app-shell">
+      <div className="app-shell home-screen">
         <main>
           <div className="empty-state">
             No se pudo conectar con la base de datos.
@@ -51,13 +53,13 @@ export default function Home() {
     )
   }
 
-  const bloques = bloquesPorTurno[turno]
+  const bloques = BLOQUES_POR_TURNO[turno]
 
   return (
-    <div className="app-shell">
+    <div className="app-shell home-screen">
       <main className="has-bottom-nav">
         <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 4 }}>
-          <LiveBadge variant="onLight" />
+          <LiveBadge variant="onDark" />
         </div>
         <div className="hero">
           <div className="hero__kicker"><Icon name="person-swimming" /> {competition.event}</div>
@@ -75,7 +77,9 @@ export default function Home() {
           {TURNO_TABS.map((t) => (
             <button
               key={t.key}
+              type="button"
               className={`tabs__btn ${turno === t.key ? 'is-active' : ''}`}
+              aria-pressed={turno === t.key}
               onClick={() => setTurno(t.key)}
             >
               {t.label}
@@ -83,23 +87,40 @@ export default function Home() {
           ))}
         </div>
 
-        <div className="section-label">Seleccioná dónde cargar tiempos</div>
-        {bloques.map((bloqueKey) => {
-          const info = BLOQUE_INFO[bloqueKey]
-          return (
-            <button
-              key={bloqueKey}
-              className="tile"
-              onClick={() => navigate(`/turno/${turno}/bloque/${bloqueKey}`)}
-            >
-              <div>
-                <div className="tile__label">{info.label}</div>
-                <div className="tile__meta">{info.meta}</div>
-              </div>
-              <span className="tile__chevron"><Icon name="chevron-right" /></span>
-            </button>
-          )
-        })}
+        <div className="home-blocks__intro">
+          {turno === 'mañana' ? (
+            <div className="home-blocks__hero-copy"></div>
+          ) : (
+            <div className="home-blocks__prompt">Seleccioná dónde cargar tiempos</div>
+          )}
+        </div>
+        <div className={turno === 'tarde' ? 'home-blocks home-blocks--tarde' : 'home-blocks'}>
+          {bloques.map((bloque) => {
+            const tileClass = bloque.hero
+              ? 'home-block-tile home-block-tile--hero'
+              : 'home-block-tile'
+
+            return (
+              <button
+                key={bloque.key}
+                type="button"
+                className={tileClass}
+                aria-label={bloque.hero ? 'Ver series — 3° a 6°' : bloque.label}
+                onClick={() => navigate(`/turno/${turno}/bloque/${bloque.key}`)}
+              >
+                <span className="home-block-tile__icon" aria-hidden="true">
+                  <span className="home-block-tile__icon-structure">
+                    <span className="home-block-tile__icon-section" />
+                    <span className="home-block-tile__icon-section" />
+                    <span className="home-block-tile__icon-section" />
+                  </span>
+                </span>
+                <span className="home-block-tile__label">{bloque.label}</span>
+                <span className="home-block-tile__meta">{bloque.meta}</span>
+              </button>
+            )
+          })}
+        </div>
       </main>
       <BottomNav />
     </div>
