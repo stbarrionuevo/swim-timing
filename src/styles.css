@@ -23,6 +23,29 @@
 
   --danger: #d33636;
 
+  /* --- Tokens del rediseño visual --- */
+  --color-navy-deep: #0b2a3d;
+  --color-navy-mid: #12384d;
+  --color-navy-border: #1b4256;
+  --color-steel: #7fa8bd;
+  --color-orange-primary: #ff5a1f;
+  --color-orange-soft-bg: #fff0e8;
+  --color-orange-soft-bg-strong: #ffe4d6;
+  --color-orange-text: #d85a30;
+  --surface-white: #ffffff;
+  --surface-gray-light: #f1f5f7;
+  --text-primary: #1b1b1b;
+  --text-muted: #7a8a94;
+  --text-muted-accessible: #53656f;
+  --text-disabled: #9aa5ab;
+
+  /* Color de heat resuelto por backend: turno × bloque × color. */
+  --threshold-media-pileta: #5c6bc0;
+  --threshold-red: #e24b4a;
+  --threshold-yellow: #ef9f27;
+  --threshold-green: #639922;
+  --threshold-none: #c7d0d4;
+
   /* --- Tipografía --- */
   --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
     sans-serif;
@@ -215,6 +238,79 @@ main {
   font-size: 13px;
   color: var(--ink-soft);
   margin-top: 2px;
+}
+
+/* Listado de series: el heat llega resuelto en series.color. */
+.series-card {
+  border-left: 5px solid var(--threshold-none);
+  padding-left: calc(var(--space-4) - 3.5px);
+}
+
+.series-card--media-pileta {
+  border-left-color: var(--threshold-media-pileta);
+}
+
+.series-card--rojo {
+  border-left-color: var(--threshold-red);
+}
+
+.series-card--amarillo {
+  border-left-color: var(--threshold-yellow);
+}
+
+.series-card--verde {
+  border-left-color: var(--threshold-green);
+}
+
+.series-card__info {
+  min-width: 0;
+}
+
+.series-card__label-row,
+.series-card__meta-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.series-card__label-row {
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.series-card__meta-row {
+  gap: var(--space-2);
+  margin-top: 2px;
+}
+
+.series-card__meta-row .tile__meta {
+  margin-top: 0;
+}
+
+.series-type-badge,
+.series-years-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.series-type-badge {
+  padding: 3px 8px;
+  background: var(--color-navy-mid);
+  color: var(--surface-white);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.series-years-badge {
+  padding: 3px 7px;
+  background: var(--surface-gray-light);
+  color: var(--text-muted-accessible);
+  font-family: var(--font-time);
+  font-size: 10px;
+  font-weight: 700;
 }
 
 .tile__chevron {
@@ -719,7 +815,7 @@ main.has-bottom-nav {
   bottom: 88px;
 }
 
-/* --- Siembra por colores (rojo/amarillo/verde) --- */
+/* --- Siembra por colores (media pileta/rojo/amarillo/verde) --- */
 
 /* Tarjeta blanca genérica para formularios de admin (mismo look que las
    cards de NOMBRE/PRUEBA/FECHA de AdminHome). */
@@ -790,6 +886,11 @@ main.has-bottom-nav {
   white-space: nowrap;
   text-transform: uppercase;
   letter-spacing: 0.02em;
+}
+
+.color-badge--media-pileta {
+  background: #eef0ff;
+  color: #3f4a9d;
 }
 
 .color-badge--rojo {

@@ -11,6 +11,44 @@ const BLOQUE_TITLE = {
   '5_6': 'Tarde — 5° y 6°',
 }
 
+const YEARS_FOR_BLOQUE = {
+  unico: [3, 4, 5, 6],
+  '3_4': [3, 4],
+  '5_6': [5, 6],
+}
+
+const SERIES_TYPE_LABEL = {
+  preliminar: 'Preliminar',
+  final: 'Final',
+}
+
+const SERIES_COLOR_CLASS = {
+  media_pileta: 'series-card--media-pileta',
+  rojo: 'series-card--rojo',
+  amarillo: 'series-card--amarillo',
+  verde: 'series-card--verde',
+}
+
+function getSeriesColorClass(series) {
+  if (series.tipo === 'normal') return 'series-card--none'
+  return SERIES_COLOR_CLASS[series.color] || 'series-card--none'
+}
+
+function formatSeriesYears(years, bloque) {
+  const presentYears = [...new Set((years || []).filter((year) => Number.isInteger(year)))].sort(
+    (a, b) => a - b
+  )
+  if (presentYears.length === 0) return null
+
+  const expectedYears = YEARS_FOR_BLOQUE[bloque] || []
+  const isExpectedSet =
+    presentYears.length === expectedYears.length &&
+    presentYears.every((year, index) => year === expectedYears[index]) &&
+    presentYears.every((year, index) => index === 0 || year === presentYears[index - 1] + 1)
+
+  return presentYears.map((year) => `${year}°`).join(isExpectedSet ? '-' : '/')
+}
+
 export default function SeriesList() {
   const { turno, bloque } = useParams()
   const navigate = useNavigate()
@@ -43,63 +81,59 @@ export default function SeriesList() {
           <div className="empty-state">Todavía no hay series para este bloque.</div>
         )}
 
-        {seriesList.map((series) => (
-          <div key={series.id} style={{ position: 'relative' }}>
-            <button
-              className="tile"
-              onClick={() => navigate(`/turno/${turno}/bloque/${bloque}/serie/${series.id}`)}
-            >
-              <div>
-                <div className="tile__label">
-                  Serie {series.seriesNumber}
-                  {series.color && (
-                    <span
-                      className={`color-badge color-badge--${series.color.replace('_', '-')}`}
-                      style={{ marginLeft: 8 }}
-                    >
-                      {series.color}
+        {seriesList.map((series) => {
+          const yearsLabel = formatSeriesYears(series.years, bloque)
+
+          return (
+            <div key={series.id} style={{ position: 'relative' }}>
+              <button
+                className={`tile series-card ${getSeriesColorClass(series)}`}
+                onClick={() => navigate(`/turno/${turno}/bloque/${bloque}/serie/${series.id}`)}
+              >
+                <div className="series-card__info">
+                  <div className="series-card__label-row">
+                    <span className="tile__label">Serie {series.seriesNumber}</span>
+                    {series.tipo !== 'normal' && SERIES_TYPE_LABEL[series.tipo] && (
+                      <span className="series-type-badge">{SERIES_TYPE_LABEL[series.tipo]}</span>
+                    )}
+                  </div>
+                  <div className="series-card__meta-row">
+                    {yearsLabel && <span className="series-years-badge">{yearsLabel}</span>}
+                    <span className="tile__meta">
+                      {series.participantCount} participante
+                      {series.participantCount !== 1 ? 's' : ''}
+                      {series.loadedCount > 0 &&
+                        ` · ${series.loadedCount}/${series.activeCount} tiempos`}
                     </span>
-                  )}
-                  {series.tipo === 'final' && (
-                    <span className="visitor-tag" style={{ marginLeft: 6 }}>
-                      Final
-                    </span>
-                  )}
+                  </div>
                 </div>
-                <div className="tile__meta">
-                  {series.participantCount} participante
-                  {series.participantCount !== 1 ? 's' : ''}
-                  {series.years.length > 0 && ` · ${series.years.map((y) => `${y}°`).join('/')}`}
-                  {series.loadedCount > 0 &&
-                    ` · ${series.loadedCount}/${series.activeCount} tiempos`}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <StatusBadge status={series.status} />
+                  <span className="tile__chevron"><Icon name="chevron-right" /></span>
                 </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <StatusBadge status={series.status} />
-                <span className="tile__chevron"><Icon name="chevron-right" /></span>
-              </div>
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                requestDelete(series)
-              }}
-              aria-label={`Eliminar serie ${series.seriesNumber}`}
-              style={{
-                position: 'absolute',
-                top: 10,
-                right: 10,
-                background: 'transparent',
-                border: 'none',
-                color: 'var(--muted)',
-                fontSize: 13,
-                padding: 6,
-              }}
-            >
-              Eliminar
-            </button>
-          </div>
-        ))}
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  requestDelete(series)
+                }}
+                aria-label={`Eliminar serie ${series.seriesNumber}`}
+                style={{
+                  position: 'absolute',
+                  top: 10,
+                  right: 10,
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--muted)',
+                  fontSize: 13,
+                  padding: 6,
+                }}
+              >
+                Eliminar
+              </button>
+            </div>
+          )
+        })}
 
         <div style={{ height: 68 }} />
       </main>
