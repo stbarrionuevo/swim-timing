@@ -5,6 +5,8 @@ import SeriesList from './pages/SeriesList'
 import SeriesLoad from './pages/SeriesLoad'
 import Results from './pages/Results'
 import Public from './pages/Public'
+import SearchResults from './pages/SearchResults'
+import ExportResults from './pages/ExportResults'
 import AdminHome from './pages/admin/AdminHome'
 import AdminYear from './pages/admin/AdminYear'
 import AdminImport from './pages/admin/AdminImport'
@@ -22,6 +24,8 @@ export default function App() {
           <Route path="/turno/:turno/bloque/:bloque/serie/:serieId" element={<SeriesLoad />} />
           <Route path="/resultados" element={<Results />} />
           <Route path="/publico" element={<Public />} />
+          <Route path="/resultados/buscar" element={<SearchResults />} />
+          <Route path="/resultados/exportar" element={<ExportResults />} />
           <Route path="/admin" element={<AdminHome />} />
           <Route path="/admin/turno/:turno/bloque/:bloque" element={<AdminYear />} />
           <Route path="/admin/importar" element={<AdminImport />} />

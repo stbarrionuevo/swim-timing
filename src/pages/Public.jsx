@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useCompetition } from '../context/CompetitionContext'
 import Icon from '../components/Icon'
+import QrCode from '../components/QrCode'
 
 const COLOR_LABELS = {
   media_pileta: 'Media pileta',
@@ -108,14 +110,20 @@ function ResultRow({ participant, position, color, index }) {
 }
 
 export default function Public() {
+  const navigate = useNavigate()
   const { competition, getRankingGeneral, getSeriesListForBloque, turnos, bloquesPorTurno } = useCompetition()
   const [showAll, setShowAll] = useState(false)
+
+
+  const exportUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}${window.location.pathname}#/resultados/exportar`
+      : ''
   const ranking = getRankingGeneral().filter(
     (participant) => participant.participa !== false && participant.result?.time != null
   )
 
-  // El color se lee de la serie ya sembrada (turno × bloque × color). No se
-  // replica ningún corte de tiempo en esta pantalla.
+
   const colorBySeriesId = new Map()
   for (const turno of turnos || []) {
     for (const bloque of bloquesPorTurno?.[turno] || []) {
@@ -141,9 +149,42 @@ export default function Public() {
         <div className="public-live" role="status" aria-label="Resultados en vivo">
           <span className="public-live__dot" aria-hidden="true" /> EN VIVO
         </div>
-        <h1 className="public-header__title">Turno {currentTurnoLabel}</h1>
+        
         <p className="public-header__subtitle">Resultados generales — todos los años</p>
       </header>
+
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+          background: 'var(--color-navy-mid)',
+          borderRadius: 16,
+          padding: 14,
+          margin: '0 16px 16px',
+          flexWrap: 'wrap',
+        }}
+      >
+        <div style={{ background: '#fff', borderRadius: 10, padding: 6, flexShrink: 0, lineHeight: 0 }}>
+          <QrCode value={exportUrl} size={80} />
+        </div>
+        <div style={{ flex: 1, minWidth: 150 }}>
+          <div style={{ color: '#fff', fontWeight: 700, fontSize: 14, marginBottom: 2 }}>
+            Descargá todos los resultados
+          </div>
+          <div style={{ color: 'var(--color-steel)', fontSize: 12 }}>
+            Escaneá el QR con la cámara del celular
+          </div>
+        </div>
+        <button
+          type="button"
+          className="btn btn--accent"
+          onClick={() => navigate('/resultados/buscar')}
+          style={{ width: 'auto', flexShrink: 0, padding: '0 16px', whiteSpace: 'nowrap' }}
+        >
+          <Icon name="magnifying-glass" /> Buscar por nombre
+        </button>
+      </div>
 
       {ranking.length === 0 ? (
         <div className="public-empty">Esperando resultados…</div>
