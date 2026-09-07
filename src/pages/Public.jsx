@@ -114,16 +114,19 @@ export default function Public() {
   const { competition, getRankingGeneral, getSeriesListForBloque, turnos, bloquesPorTurno } = useCompetition()
   const [showAll, setShowAll] = useState(false)
 
-
+  // HashRouter: la ruta real queda después del '#'. Se arma con
+  // window.location para que el QR apunte siempre al dominio correcto
+  // (funciona igual en producción y en preview de Vercel).
   const exportUrl =
     typeof window !== 'undefined'
-      ? `${window.location.origin}${window.location.pathname}#/resultados/exportar`
+      ? `${window.location.origin}${window.location.pathname}#/resultados/descargar-pdf`
       : ''
   const ranking = getRankingGeneral().filter(
     (participant) => participant.participa !== false && participant.result?.time != null
   )
 
-
+  // El color se lee de la serie ya sembrada (turno × bloque × color). No se
+  // replica ningún corte de tiempo en esta pantalla.
   const colorBySeriesId = new Map()
   for (const turno of turnos || []) {
     for (const bloque of bloquesPorTurno?.[turno] || []) {
@@ -149,7 +152,7 @@ export default function Public() {
         <div className="public-live" role="status" aria-label="Resultados en vivo">
           <span className="public-live__dot" aria-hidden="true" /> EN VIVO
         </div>
-        
+        <h1 className="public-header__title">Turno {currentTurnoLabel}</h1>
         <p className="public-header__subtitle">Resultados generales — todos los años</p>
       </header>
 
