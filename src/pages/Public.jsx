@@ -52,7 +52,7 @@ function YearBadge({ participant, color, podium = false }) {
       <span>{yearLabel}</span>
       {participant.esColegioVisitante && (
         <span className="public-year-badge__visitor" aria-hidden="true">
-          
+          V
         </span>
       )}
     </span>
