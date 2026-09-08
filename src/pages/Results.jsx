@@ -21,10 +21,10 @@ const YEARS_FOR_BLOQUE = {
 }
 
 const COLOR_TABS = [
-  { key: 'media_pileta', label: 'Media pileta' },
-  { key: 'rojo', label: 'Rojo' },
-  { key: 'amarillo', label: 'Amarillo' },
-  { key: 'verde', label: 'Verde' },
+  { key: 'media_pileta', label: 'Media pileta',bg: '#e0f2fe',color: '#0369a1',border: '#7dd3fc', },
+  { key: 'rojo', label: 'Rojo',bg: '#fee2e2',color: '#b91c1c',border: '#fca5a5', },
+  { key: 'amarillo', label: 'Amarillo',bg: '#fef9c3',color: '#e9db1f',border: '#fde047', },
+  { key: 'verde', label: 'Verde',bg: '#dcfce7',color: '#15803d', border: '#86efac', },
 ]
 
 export default function Results() {
@@ -157,18 +157,31 @@ export default function Results() {
           </>
         )}
 
-        {mainTab === 'finales' && (
+{mainTab === 'finales' && (
           <>
             <div className="tabs" style={{ flexWrap: 'wrap' }}>
-              {COLOR_TABS.map((c) => (
-                <button
-                  key={c.key}
-                  className={`tabs__btn ${color === c.key ? 'is-active' : ''}`}
-                  onClick={() => setColor(c.key)}
-                >
-                  {c.label}
-                </button>
-              ))}
+              {COLOR_TABS.map((c) => {
+                const isSelected = color === c.key
+
+                return (
+                  <button
+                    key={c.key}
+                    className={`tabs__btn ${isSelected ? 'is-active' : ''}`}
+                    onClick={() => setColor(c.key)}
+                    style={
+                      isSelected
+                        ? {
+                            backgroundColor: c.bg,
+                            color: c.color,
+                            borderColor: c.border,
+                          }
+                        : undefined
+                    }
+                  >
+                    {c.label}
+                  </button>
+                )
+              })}
             </div>
 
             {rankingFinal.length === 0 ? (
