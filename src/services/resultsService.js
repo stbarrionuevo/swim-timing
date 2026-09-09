@@ -49,7 +49,10 @@ export async function fetchCompetitionData() {
       id: p.id,
       competitionId: p.competition_id,
       seriesId: p.series_id,
- 
+      // Enlaza la copia de una serie final con el participante original de
+      // la preliminar. Se usa en el frontend para no mostrar dos veces al
+      // mismo nadador en el ranking general (bug 9/9/2026).
+      participanteOrigenId: p.participante_origen_id,
       year: p.year_number,
       turno: seriesRow?.turno,
       bloque: seriesRow?.bloque,
@@ -192,15 +195,6 @@ export async function deleteSeries(seriesId) {
   const { error } = await supabase.from('series').delete().eq('id', seriesId)
   if (error) throw error
   return { id: seriesId, deleted: true }
-}
-
-// Usado al fusionar dos series manualmente (AdminYear): si mezclan colores
-// distintos, la serie resultante ya no es "pura" de un color y el badge se
-// limpia (null) para no mostrar una etiqueta que ya no es cierta.
-export async function updateSeriesColor(seriesId, color) {
-  const { error } = await supabase.from('series').update({ color }).eq('id', seriesId)
-  if (error) throw error
-  return { id: seriesId, color }
 }
 
 

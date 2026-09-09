@@ -12,20 +12,20 @@ export default function AdminFinales() {
   const navigate = useNavigate()
   const { generateFinalSeries } = useCompetition()
 
-  const [generando, setGenerando] = useState(false)
+  const [generando, setGenerando] = useState(null) // 'mañana' | 'tarde' | null
   const [resultado, setResultado] = useState(null)
   const [error, setError] = useState(null)
 
-  async function handleGenerar() {
-    setGenerando(true)
+  async function handleGenerar(turno) {
+    setGenerando(turno)
     setError(null)
     try {
-      const creadas = await generateFinalSeries()
+      const creadas = await generateFinalSeries(turno)
       setResultado(creadas)
     } catch (err) {
       setError(err.message || String(err))
     } finally {
-      setGenerando(false)
+      setGenerando(null)
     }
   }
 
@@ -40,7 +40,7 @@ export default function AdminFinales() {
         </button>
         <div>
           <div className="topbar__title">Series finales</div>
-          <div className="topbar__subtitle">Top 5 por turno, bloque y color</div>
+          <div className="topbar__subtitle">Top 5 por bloque y color</div>
         </div>
       </header>
 
@@ -49,12 +49,28 @@ export default function AdminFinales() {
           <p className="hint-text" style={{ marginBottom: 'var(--space-4)' }}>
             Toma el tiempo real que nadó cada chico en su serie preliminar (no el tiempo básico del
             Excel) y arma una final por bloque y color con los 5 más rápidos, mezclando los años de
-            ese bloque. Correr esto recién cuando todas las series preliminares tengan resultado
-            cargado — si alguna final ya tiene tiempos cargados, NO se toca.
+            ese bloque. Correr esto recién cuando todas las series preliminares de ese turno tengan
+            resultado cargado — si alguna final ya tiene tiempos cargados, NO se toca. Generar las
+            finales de un turno no afecta ni regenera las del otro.
           </p>
-          <button className="btn btn--accent" disabled={generando} onClick={handleGenerar}>
-            {generando ? 'Generando...' : 'Generar series finales'}
-          </button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button
+              className="btn btn--accent"
+              disabled={!!generando}
+              onClick={() => handleGenerar('mañana')}
+              style={{ flex: 1, minWidth: 160 }}
+            >
+              {generando === 'mañana' ? 'Generando...' : 'Generar finales — Mañana'}
+            </button>
+            <button
+              className="btn btn--accent"
+              disabled={!!generando}
+              onClick={() => handleGenerar('tarde')}
+              style={{ flex: 1, minWidth: 160 }}
+            >
+              {generando === 'tarde' ? 'Generando...' : 'Generar finales — Tarde'}
+            </button>
+          </div>
         </div>
 
         {error && (

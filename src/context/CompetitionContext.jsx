@@ -207,6 +207,9 @@ function reducer(state, action) {
             id: row.id,
             competitionId: row.competition_id,
             seriesId: row.series_id,
+            // Enlaza la copia en una final con el original de la
+            // preliminar — usado para deduplicar el ranking general.
+            participanteOrigenId: row.participante_origen_id,
             // El año viaja con el participante (tag propio), no con la serie.
             year: row.year_number,
             turno: seriesRow.turno,
@@ -230,11 +233,6 @@ function reducer(state, action) {
       }
     case 'REMOVE_PARTICIPANT':
       return { ...state, participants: state.participants.filter((p) => p.id !== action.participantId) }
-    case 'UPDATE_SERIES':
-      return {
-        ...state,
-        series: state.series.map((s) => (s.id === action.seriesId ? { ...s, ...action.patch } : s)),
-      }
     case 'UPDATE_COMPETITION':
       return { ...state, competition: { ...state.competition, ...action.patch } }
     default:
@@ -625,52 +623,6 @@ export function CompetitionProvider({ children }) {
     [findOrCreateSeries]
   )
 
-  // Fusión manual de dos series (herramienta de optimización de tiempo:
-  // juntar heats chicos de colores contiguos, ej. rojo de 2 + amarillo de 3,
-  // en vez de cronometrar dos series incompletas por separado). Mueve a
-  // todos los participantes de sourceSeriesId hacia targetSeriesId y borra
-  // la serie de origen. Si ambas series tenían un color distinto, el color
-  // de la serie resultante se limpia (deja de ser "pura" de un color).
-  const mergeSeries = useCallback(
-    async (sourceSeriesId, targetSeriesId) => {
-      if (!sourceSeriesId || !targetSeriesId || sourceSeriesId === targetSeriesId) return
-
-      const source = state.series.find((s) => s.id === sourceSeriesId)
-      const target = state.series.find((s) => s.id === targetSeriesId)
-      if (!source || !target) throw new Error('Serie no encontrada.')
-
-      const toMove = state.participants.filter((p) => p.seriesId === sourceSeriesId)
-      const mediaPiletaTarget = target.color === 'media_pileta'
-
-      for (const p of toMove) {
-        await dataService.updateParticipant(p.id, {
-          seriesId: targetSeriesId,
-          mediaPileta: mediaPiletaTarget,
-        })
-        dispatch({
-          type: 'UPDATE_PARTICIPANT',
-          participantId: p.id,
-          patch: {
-            seriesId: targetSeriesId,
-            turno: target.turno,
-            bloque: target.bloque,
-            series: target.seriesNumber,
-            mediaPileta: mediaPiletaTarget,
-          },
-        })
-      }
-
-      if (source.color && target.color && source.color !== target.color) {
-        await dataService.updateSeriesColor(targetSeriesId, null)
-        dispatch({ type: 'UPDATE_SERIES', seriesId: targetSeriesId, patch: { color: null } })
-      }
-
-      await dataService.deleteSeries(sourceSeriesId)
-      dispatch({ type: 'DELETE_SERIES', seriesId: sourceSeriesId })
-    },
-    [state.series, state.participants]
-  )
-
   const deleteParticipant = useCallback(async (participantId) => {
     await dataService.deleteParticipant(participantId)
     dispatch({ type: 'REMOVE_PARTICIPANT', participantId })
@@ -822,23 +774,41 @@ export function CompetitionProvider({ children }) {
     [state.participants]
   )
 
-  const getRankingGeneral = useCallback(
-    () =>
-      state.participants
-        .filter((p) => p.participa && p.result.time !== null)
-        .sort((a, b) => a.result.time - b.result.time),
-    [state.participants]
-  )
+  // Deduplica un listado de participantes elegibles quedándose, por cada
+  // nadador real, con la fila de MEJOR tiempo — sin importar si ese
+  // registro es de la serie preliminar o de la final. Un participante de
+  // final comparte "identidad" con su original de la preliminar vía
+  // participanteOrigenId (seedingService los enlaza así al copiarlo).
+  // Se usa en el ranking general para que nadie aparezca dos veces en el
+  // podio público (bug 9/9/2026).
+  function dedupePorMejorTiempo(eligibles) {
+    const bestByCanonicalId = new Map()
+    for (const p of eligibles) {
+      const canonicalId = p.participanteOrigenId || p.id
+      const actual = bestByCanonicalId.get(canonicalId)
+      if (!actual || p.result.time < actual.result.time) {
+        bestByCanonicalId.set(canonicalId, p)
+      }
+    }
+    return [...bestByCanonicalId.values()]
+  }
+
+  const getRankingGeneral = useCallback(() => {
+    const eligibles = state.participants.filter((p) => p.participa && p.result.time !== null)
+    return dedupePorMejorTiempo(eligibles).sort((a, b) => a.result.time - b.result.time)
+  }, [state.participants])
 
   // Ranking general de un turno+bloque completo, mezclando años (cada
-  // fila lleva su propio p.year como tag para mostrar en pantalla).
+  // fila lleva su propio p.year como tag para mostrar en pantalla). Se
+  // deduplica igual que getRankingGeneral: gana el mejor tiempo entre
+  // preliminar y final, sin importar de cuál de las dos series viene.
   const getRankingGeneralBloque = useCallback(
-    (turno, bloque) =>
-      state.participants
-        .filter(
-          (p) => p.turno === turno && p.bloque === bloque && p.participa && p.result.time !== null
-        )
-        .sort((a, b) => a.result.time - b.result.time),
+    (turno, bloque) => {
+      const eligibles = state.participants.filter(
+        (p) => p.turno === turno && p.bloque === bloque && p.participa && p.result.time !== null
+      )
+      return dedupePorMejorTiempo(eligibles).sort((a, b) => a.result.time - b.result.time)
+    },
     [state.participants]
   )
 
@@ -881,10 +851,17 @@ export function CompetitionProvider({ children }) {
     return seedingService.generatePreliminarySeries(state.competition.id)
   }, [state.competition])
 
-  const generateFinalSeries = useCallback(async () => {
-    if (!state.competition) throw new Error('Todavía no se cargó la competencia.')
-    return seedingService.generateFinalSeries(state.competition.id)
-  }, [state.competition])
+  // turno es opcional: sin pasarlo, genera mañana y tarde juntos (viejo
+  // comportamiento). Pasando 'mañana' o 'tarde' acota el botón a ese
+  // turno — así generar las finales de un turno no dispara ni regenera
+  // las del otro (bug 9/9/2026).
+  const generateFinalSeries = useCallback(
+    async (turno) => {
+      if (!state.competition) throw new Error('Todavía no se cargó la competencia.')
+      return seedingService.generateFinalSeries(state.competition.id, turno)
+    },
+    [state.competition]
+  )
 
   const value = useMemo(
     () => ({
@@ -904,7 +881,6 @@ export function CompetitionProvider({ children }) {
       setVisitor,
       addSeries,
       deleteSeries,
-      mergeSeries,
       resolveConflict,
       getConflict,
       createParticipant,
@@ -936,7 +912,6 @@ export function CompetitionProvider({ children }) {
       setVisitor,
       addSeries,
       deleteSeries,
-      mergeSeries,
       resolveConflict,
       getConflict,
       createParticipant,

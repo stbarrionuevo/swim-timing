@@ -150,10 +150,15 @@ export async function generatePreliminarySeries(competitionId) {
   return seriesCreadas;
 }
 
-export async function generateFinalSeries(competitionId) {
-  console.log('=== generateFinalSeries INICIADA ===', competitionId);
+// turnoFiltro es opcional: sin pasarlo, procesa mañana y tarde (comportamiento
+// viejo). Pasando 'mañana' o 'tarde' acota el loop a ese turno únicamente —
+// generar finales de un turno ya no toca ni regenera las del otro
+// (bug 9/9/2026: "genera finales de mañana y tarde en loop").
+export async function generateFinalSeries(competitionId, turnoFiltro) {
+  console.log('=== generateFinalSeries INICIADA ===', competitionId, turnoFiltro || 'todos los turnos');
 
   const finalesCreadas = [];
+  const turnosAProcesar = turnoFiltro ? [turnoFiltro] : TURNOS;
 
   const { data: preliminares, error: errPrelim } = await supabase
     .from('participants')
@@ -185,7 +190,7 @@ export async function generateFinalSeries(competitionId) {
   console.log('Ejemplo de participante:', preliminares[0]);
   console.log('Resultados encontrados:', resultsByParticipantId.size);
 
-  for (const turno of TURNOS) {
+  for (const turno of turnosAProcesar) {
     for (const bloque of BLOQUES_POR_TURNO[turno]) {
       let seriesNumberEnBloque = 1;
 
