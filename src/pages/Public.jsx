@@ -225,7 +225,7 @@ export default function Public() {
               onClick={() => setShowAll((current) => !current)}
               aria-expanded={showAll}
             >
-              {showAll ? <><Icon name="check" /> Mostrando todos</> : <>Ver los {ranking.length} resultados <Icon name="chevron-down" /></>}
+              {showAll ? <><Icon name="check" /> Mostrando todos los resultados</> : <>Ver los {ranking.length} resultados <Icon name="chevron-down" /></>}
             </button>
           )}
         </main>
